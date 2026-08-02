@@ -3,3 +3,4 @@ build/
 *.nds
 out/
 docs/api/
+doxygen.log

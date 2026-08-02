@@ -26,8 +26,10 @@ if [ "${1-}" = "docs" ]; then
 		-w /project \
 		-e HOME=/tmp \
 		"${DOXYGEN_IMAGE:-alpine:3.20}" \
-		sh -c "apk add --no-cache doxygen >/dev/null && doxygen Doxyfile \
-		       && chown -R $(id -u):$(id -g) docs/api \
+		sh -c "apk add --no-cache doxygen >/dev/null \
+		       && mkdir -p docs/api \
+		       && doxygen Doxyfile \
+		       && chown -R $(id -u):$(id -g) docs \
 		       && echo 'docs written to docs/api/html/index.html'"
 fi
 

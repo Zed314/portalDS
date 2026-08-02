@@ -48,6 +48,15 @@ Either writes `docs/api/html/index.html`. Note that doxygen is *not* part of
 the BlocksDS toolchain image, so the Docker route pulls a small Alpine image
 and installs it there; set `DOXYGEN_IMAGE` to use your own image instead.
 
+Continuous integration
+----------------------
+
+`.github/workflows/ci.yml` runs on every push and pull request. It builds the
+ROM both ways the README describes (`./docker-build.sh` and
+`docker build --output`), and generates the documentation, failing if doxygen
+reports any warning outside the third-party `iniparser`/`dictionary` files.
+The ROM and the HTML reference are attached to each run as artifacts.
+
 This is pretty much the game's final version. It's not quite complete feature-wise but I have no plans on continuing it.
 The code is provided "as-is" (whatever that entails), and can be freely used so long as it's not for commercial purposes and that proper credit is given to the original author.
 I'd love to hear about what people do with this, if anything, so shoot me an email if you feel like using some (or all) of the code ! I'll also try to answer any questions you may have. Here's a short write-up to accompany the source code : https://web.archive.org/web/20140210005514/smealum.net/?page_id=326

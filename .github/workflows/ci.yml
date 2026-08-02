@@ -1,0 +1,87 @@
+# Continuous integration for portalDS.
+#
+# Each job runs one of the build paths the README documents, so if a documented
+# command stops working CI notices before a user does. Nothing here installs a
+# toolchain on the runner: everything happens inside the same containers a
+# developer would use locally.
+
+name: CI
+
+on: [push, pull_request]
+
+# A push to a branch with an open PR would otherwise build it twice; and there
+# is no point finishing a run whose commit has already been superseded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The incremental build path: ./docker-build.sh, bind-mounting the tree into
+  # the BlocksDS toolchain image.
+  rom:
+    name: Build ROM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: ./docker-build.sh
+
+      - name: Check the ROM was produced
+        run: |
+          test -f portalDS.nds
+          ls -l portalDS.nds
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portalDS.nds
+          path: portalDS.nds
+          if-no-files-found: error
+
+  # The self-contained build path from the README: docker build --output.
+  # Compiles the same sources again, but it is the only thing keeping the
+  # Dockerfile honest.
+  dockerfile:
+    name: Build via Dockerfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: docker build --output out .
+        run: docker build --output out .
+
+      - name: Check the ROM was produced
+        run: |
+          test -f out/portalDS.nds
+          ls -l out/portalDS.nds
+
+  # Generates the Doxygen reference and treats new warnings as failures, so the
+  # doc comments cannot rot silently as the code changes.
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate
+        # pipefail, or a doxygen failure would be masked by tee succeeding.
+        run: |
+          set -o pipefail
+          ./docker-build.sh docs 2>&1 | tee doxygen.log
+
+      - name: Fail on new doxygen warnings
+        run: |
+          # iniparser and dictionary are third party (N. Devillard) and have
+          # always warned; everything else is ours and must stay clean.
+          if grep 'warning:' doxygen.log | grep -v 'iniparser\|dictionary' > new-warnings.txt; then
+            echo "::error::doxygen reported warnings outside the third-party files:"
+            cat new-warnings.txt
+            exit 1
+          fi
+          echo "no new doxygen warnings"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-reference
+          path: docs/api/html
+          if-no-files-found: error

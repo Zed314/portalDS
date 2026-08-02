@@ -70,8 +70,13 @@ clean:
 
 # API reference generated from the doc comments in the sources. Requires
 # doxygen, which is not part of the BlocksDS toolchain; install it separately.
+#
+# The mkdir is not redundant: doxygen only creates the last component of
+# OUTPUT_DIRECTORY, and docs/ does not exist in a fresh clone (git does not
+# track empty directories).
 docs:
 	@echo "  DOXYGEN docs/api"
+	$(V)mkdir -p docs/api
 	$(V)doxygen Doxyfile
 
 arm9:
