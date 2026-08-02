@@ -8,6 +8,20 @@ This is the source code for portalDS, a homebrew adaptation of Valve Software's 
 While reading this, please keep in mind that this includes a bunch of legacy code that may date back as far as 2007; most of this probably isn't a good example of "good practice". Likewise, keep in mind that a number of features were rushed in the two weeks right before the neoflash competition ended in August 2013; a lot of these should probably be rewritten. (see git log to see what i'm referring to)
 
 Compiling this fork requires BlocksDS; see https://blocksds.skylyrac.net/ for more information on setting everything up.
+
+If you'd rather not install a toolchain, the project can be built with Docker using the official BlocksDS image:
+
+    docker build --output out .     # produces out/portalDS.nds
+
+Or, for incremental builds straight into the working tree (the ROM and build/ end up owned by your user):
+
+    ./docker-build.sh               # same as "make", produces ./portalDS.nds
+    ./docker-build.sh clean
+    ./docker-build.sh dldipatch
+    ./docker-build.sh sh            # interactive shell inside the toolchain
+
+Set `BLOCKSDS_IMAGE` to pin a specific toolchain version; it defaults to `skylyrac/blocksds:slim-latest`.
+
 This is pretty much the game's final version. It's not quite complete feature-wise but I have no plans on continuing it.
 The code is provided "as-is" (whatever that entails), and can be freely used so long as it's not for commercial purposes and that proper credit is given to the original author.
 I'd love to hear about what people do with this, if anything, so shoot me an email if you feel like using some (or all) of the code ! I'll also try to answer any questions you may have. Here's a short write-up to accompany the source code : https://web.archive.org/web/20140210005514/smealum.net/?page_id=326

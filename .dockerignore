@@ -1,0 +1,12 @@
+*
+!Makefile
+!Makefile.arm7
+!Makefile.arm9
+!logo.png
+!common/
+!arm7/
+!arm9/
+!nitrofiles/
+**/build/
+**/*.elf
+**/*.nds
