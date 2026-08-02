@@ -6,10 +6,11 @@
 #   ./docker-build.sh clean
 #   ./docker-build.sh dldipatch
 #   ./docker-build.sh docs         # generate docs/api/html with doxygen
+#   ./docker-build.sh test         # run the host unit tests
 #   ./docker-build.sh sh           # interactive shell in the toolchain
 #
-# Set BLOCKSDS_IMAGE to pin a different toolchain version, or DOXYGEN_IMAGE to
-# pin the (separate) image used for "docs".
+# Set BLOCKSDS_IMAGE to pin a different toolchain version, or DOXYGEN_IMAGE /
+# TEST_IMAGE to pin the (separate) images used for "docs" and "test".
 
 set -eu
 
@@ -31,6 +32,33 @@ if [ "${1-}" = "docs" ]; then
 		       && doxygen Doxyfile \
 		       && chown -R $(id -u):$(id -g) docs \
 		       && echo 'docs written to docs/api/html/index.html'"
+fi
+
+# Tests are a special case for the opposite reason to docs: they are not cross
+# compiled at all. They build the pure logic sources for whatever machine they
+# run on, so what they need is a plain host compiler - which the toolchain
+# image, being a cross toolchain, does not carry. Ubuntu 24.04 to match the
+# base the BlocksDS image itself uses. Root is needed to apt-get, hence the
+# chown afterwards.
+#
+# Anything after "test" is passed through to make, so e.g.
+#   ./docker-build.sh test SANITIZE=0
+if [ "${1-}" = "test" ]; then
+	shift
+	exec docker run --rm \
+		-v "$PROJECT:/project" \
+		-w /project \
+		-e HOME=/tmp \
+		"${TEST_IMAGE:-ubuntu:24.04}" \
+		sh -c "set -e; \
+		       apt-get update >/dev/null && \
+		       DEBIAN_FRONTEND=noninteractive apt-get install -y \
+		           gcc libc6-dev make >/dev/null; \
+		       set +e; \
+		       make test $*; \
+		       status=\$?; \
+		       chown -R $(id -u):$(id -g) tests/build 2>/dev/null; \
+		       exit \$status"
 fi
 
 if [ "${1-}" = "sh" ] || [ "${1-}" = "bash" ]; then

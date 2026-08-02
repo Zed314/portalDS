@@ -1,13 +1,22 @@
 portalDS unit tests
 ===================
 
-    make test           # from the repository root
-    make -C tests       # the same thing
+    make test                   # from the repository root
+    make -C tests               # the same thing
+    ./docker-build.sh test      # in a container, if you would rather not
+                                # install a compiler
 
-The tests need nothing but a C compiler - no BlocksDS, no Docker, no DS. They
-compile the game's own sources with the host compiler and run them natively.
+The tests need nothing but a C compiler - no BlocksDS, no DS. They compile the
+game's own sources with the host compiler and run them natively.
 AddressSanitizer and UndefinedBehaviorSanitizer are on by default; pass
 `SANITIZE=0` to turn them off.
+
+The container route deliberately does not use the BlocksDS image. That image
+is a *cross* toolchain and has no host compiler at all, which is the same
+reason `./docker-build.sh docs` has to fetch its own image: it pulls plain
+Ubuntu, installs gcc, runs `make test` against the bind-mounted tree and hands
+`tests/build` back to you rather than to root. `TEST_IMAGE` overrides the
+image; anything after `test` is passed through to make.
 
 Framework
 ---------

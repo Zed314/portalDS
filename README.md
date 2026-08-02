@@ -30,13 +30,20 @@ There is a small host-side unit test suite covering the parts of the codebase
 that are pure logic - the ARM7 fixed point maths, the 3x3 matrix code, and the
 RLE codec every saved level goes through:
 
-    make test
+    make test                       # needs only a C compiler
+    ./docker-build.sh test          # or run them in a container instead
 
-It needs nothing but a C compiler: no BlocksDS, no Docker, no DS. The sources
-under test are compiled natively against a small stand-in for `<nds.h>` and
-run under AddressSanitizer and UndefinedBehaviorSanitizer. The framework is
+It needs nothing but a C compiler: no BlocksDS, no DS. The sources under test
+are compiled natively against a small stand-in for `<nds.h>` and run under
+AddressSanitizer and UndefinedBehaviorSanitizer. The framework is
 [Unity](https://github.com/ThrowTheSwitch/Unity), vendored under
 `tests/unity/`.
+
+Note that the Docker route does *not* use the BlocksDS image: these tests are
+not cross compiled, so what they need is a host compiler, which a cross
+toolchain does not carry. It pulls a plain Ubuntu image instead; set
+`TEST_IMAGE` to use your own. Arguments are passed through to make, so
+`./docker-build.sh test SANITIZE=0` works.
 
 See `tests/README.md` for what is covered, what is not (anything touching the
 hardware, and the hand written ARM assembly), and how to add a suite.
