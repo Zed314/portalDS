@@ -39,11 +39,34 @@ What is covered
 | `test_fixed_math` | `arm7/include/math.h` - fixed point conversions, multiplies, vectors, lengths, trig |
 | `test_matrix` | `arm7/source/math.c` - 3x3 rotation matrices, `rotateMatrixAxis`, `fixMatrix` |
 | `test_compression` | `arm9/source/compression.c` - the 16 bit RLE codec every saved level goes through |
+| `test_obb` | `arm7/source/OBB.c` - body setup, inertia, corners, bounding boxes, torque |
+| `test_collision` | `arm7/source/AAR.c` + the box-box narrow phase - contact generation and the broadphase grid |
+| `test_solver` | `arm7/source/OBB.c` - impulses, integration, sleeping, portal transport |
 
 These are the parts of the codebase that are pure logic: data in, data out,
 no hardware. That is also where the bugs are worst, because a wrong answer in
 the fixed point maths shows up as physics that feels subtly off rather than as
 a crash, and a wrong answer in the codec corrupts map files.
+
+Note that the physics engine is in that list. It reads like hardware code
+because it lives on the ARM7 next to the FIFO, but `OBB.c`, `AAR.c` and
+`platform.c` between them make not a single rendering, VRAM, input or FIFO
+call - they are fixed point maths over a pool of structs. What kept them
+untestable was the global state, not the hardware, and `physicsReset()` in
+`tests/host/physics_fixture.c` deals with that.
+
+The physics suites lean on properties rather than golden numbers, because a
+fixed point impulse solver has no closed form to compare against:
+
+- a rectangle generates contacts only for a body that really straddles it,
+  within its extent;
+- gathering contacts through the broadphase grid gives exactly what testing
+  every rectangle by brute force would - the grid is an optimisation, not a
+  behaviour;
+- an impulse never adds energy, so a stack of cubes cannot explode;
+- a body resting on a floor is still resting on it hundreds of frames later;
+- an orientation matrix is still a rotation after hundreds of integrations,
+  which is only true because `fixMatrix()` runs every step.
 
 What is NOT covered, and why
 ----------------------------
@@ -63,6 +86,9 @@ be worse than not trying:
 - **The game and editor logic** - large stateful modules wired into globals
   and hardware. Testable in principle, but only after the state they depend on
   is untangled from the hardware they depend on.
+- **The FIFO protocol** - `PI7.c` and `PI9.c` are the boundary between the two
+  CPUs and genuinely need both of them. `tests/host/physics_fixture.c` stands
+  in for the state `PI7.c` owns, so the physics can be tested without it.
 
 How the host build works
 ------------------------
@@ -77,6 +103,8 @@ How the host build works
 - `arm_primitives.c` supplies the two ARM assembly routines described above.
 - `f32_test.h` holds the fixed point assertion helpers and the three
   tolerances (`TOL_BIT`, `TOL_FEW`, `TOL_COARSE`) the suites assert with.
+- `physics_fixture.[ch]` owns the globals the FIFO layer would normally hold
+  and provides `physicsReset()`, which every physics test calls from `setUp()`.
 
 `tests/Makefile` puts `tests/host` first on the include path so these shadow
 the real headers, and deliberately keeps `arm7/include` off the include path

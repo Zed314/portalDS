@@ -50,4 +50,14 @@ typedef int32_t f32;
 #define DTCM_DATA
 #define DTCM_BSS
 
+/*
+ * The FIFO link to the other CPU. The physics engine only ever uses it to
+ * report its allocator high water mark, which is telemetry rather than
+ * behaviour, so the test build gets a no-op that counts the calls. Anything
+ * that needs a real FIFO does not belong in a host test.
+ */
+#define FIFO_USER_08 8
+
+void fifoSendValue32(u32 channel, u32 value);
+
 #endif

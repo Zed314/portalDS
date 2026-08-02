@@ -26,9 +26,9 @@ Set `BLOCKSDS_IMAGE` to pin a specific toolchain version; it defaults to `skylyr
 Tests
 -----
 
-There is a small host-side unit test suite covering the parts of the codebase
-that are pure logic - the ARM7 fixed point maths, the 3x3 matrix code, and the
-RLE codec every saved level goes through:
+There is a host-side unit test suite covering the parts of the codebase that
+are pure logic - the ARM7 fixed point maths, the 3x3 matrix code, the rigid
+body physics engine, and the RLE codec every saved level goes through:
 
     make test                       # needs only a C compiler
     ./docker-build.sh test          # or run them in a container instead

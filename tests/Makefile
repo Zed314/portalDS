@@ -59,7 +59,12 @@ I_UNITY   := -I$(TESTDIR)unity
 I_ARM7    := -I$(ROOT)/arm7/include -I$(ROOT)/common/include
 I_ARM9    := -I$(ROOT)/arm9/include
 
-SUITES    := fixed_math matrix compression
+# The real ARM7 build gets these from ds_arm7.specs. ARM7 in particular
+# selects a different computePortalPlane() in common/include/PIC.h, so without
+# it the tests would be exercising the ARM9's version of the portal maths.
+D_ARM7    := -DARM7 -D__NDS__
+
+SUITES    := fixed_math matrix compression obb collision solver
 BINS      := $(addprefix $(BUILD)/test_,$(SUITES))
 
 .PHONY: all build test clean
@@ -92,26 +97,38 @@ $(BUILD)/unity.o: $(TESTDIR)unity/unity.c $(THISFILE) | $(BUILD)
 $(BUILD)/arm_primitives.o: $(TESTDIR)host/arm_primitives.c $(THISFILE) | $(BUILD)
 	$(CC) $(TESTFLAGS) $(I_HOST) -c $< -o $@
 
+$(BUILD)/physics_fixture.o: $(TESTDIR)host/physics_fixture.c $(THISFILE) | $(BUILD)
+	$(CC) $(TESTFLAGS) $(D_ARM7) $(I_HOST) $(I_UNITY) -c $< -o $@
+
 # --- game sources under test ---------------------------------------------
 
-$(BUILD)/arm7_math.o: $(ROOT)/arm7/source/math.c $(THISFILE) | $(BUILD)
-	$(CC) $(GAMEFLAGS) $(I_HOST) $(I_ARM7) -c $< -o $@
+# Every ARM7 source is compiled the same way, so one rule covers them all:
+# build/arm7_OBB.o comes from arm7/source/OBB.c.
+$(BUILD)/arm7_%.o: $(ROOT)/arm7/source/%.c $(THISFILE) | $(BUILD)
+	$(CC) $(GAMEFLAGS) $(D_ARM7) $(I_HOST) $(I_ARM7) -c $< -o $@
 
 $(BUILD)/compression.o: $(ROOT)/arm9/source/compression.c $(THISFILE) | $(BUILD)
 	$(CC) $(GAMEFLAGS) $(I_HOST) $(I_ARM9) -c $< -o $@
 
 # --- suites ---------------------------------------------------------------
 
-$(BUILD)/test_fixed_math.o: $(TESTDIR)suites/test_fixed_math.c $(THISFILE) | $(BUILD)
-	$(CC) $(TESTFLAGS) $(I_HOST) $(I_UNITY) -c $< -o $@
-
-$(BUILD)/test_matrix.o: $(TESTDIR)suites/test_matrix.c $(THISFILE) | $(BUILD)
-	$(CC) $(TESTFLAGS) $(I_HOST) $(I_UNITY) -c $< -o $@
+# Suites reach the engine headers by relative path, so they need no include
+# flags beyond the shim and the framework. test_compression is the exception
+# and has its own rule below; an explicit rule beats this pattern.
+$(BUILD)/test_%.o: $(TESTDIR)suites/test_%.c $(THISFILE) | $(BUILD)
+	$(CC) $(TESTFLAGS) $(D_ARM7) $(I_HOST) $(I_UNITY) -c $< -o $@
 
 $(BUILD)/test_compression.o: $(TESTDIR)suites/test_compression.c $(THISFILE) | $(BUILD)
 	$(CC) $(TESTFLAGS) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
 
 MATHOBJS  := $(BUILD)/unity.o $(BUILD)/arm_primitives.o $(BUILD)/arm7_math.o
+
+# The whole ARM7 physics engine, minus the FIFO layer that talks to the other
+# CPU - physics_fixture.o stands in for the state that layer owns.
+PHYSOBJS  := $(MATHOBJS) $(BUILD)/physics_fixture.o \
+             $(BUILD)/arm7_OBB.o $(BUILD)/arm7_AAR.o \
+             $(BUILD)/arm7_plane.o $(BUILD)/arm7_platform.o \
+             $(BUILD)/arm7_PIC7.o
 
 $(BUILD)/test_fixed_math: $(BUILD)/test_fixed_math.o $(MATHOBJS)
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm
@@ -121,3 +138,12 @@ $(BUILD)/test_matrix: $(BUILD)/test_matrix.o $(MATHOBJS)
 
 $(BUILD)/test_compression: $(BUILD)/test_compression.o $(BUILD)/unity.o $(BUILD)/compression.o
 	$(CC) $(BASEFLAGS) $^ -o $@
+
+$(BUILD)/test_obb: $(BUILD)/test_obb.o $(PHYSOBJS)
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+$(BUILD)/test_collision: $(BUILD)/test_collision.o $(PHYSOBJS)
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+$(BUILD)/test_solver: $(BUILD)/test_solver.o $(PHYSOBJS)
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
