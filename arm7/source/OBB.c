@@ -73,6 +73,16 @@ ARM_CODE void initOBB(OBB_struct* o, vect3D size, vect3D pos, int32_t mass, s32 
 	o->energy=0;
 	o->sleep=false;
 
+	// createOBB overwrites its slot unconditionally and the ARM9 recycles ids,
+	// so these have to be cleared too - otherwise a new box inherits the
+	// previous occupant's state. A stale counter is the one that bites: it is
+	// the number of calm frames behind the sleep heuristic, so a box spawned
+	// into the slot of one that had settled falls asleep almost immediately,
+	// freezing in mid-air.
+	o->counter=0;
+	o->portaled=false;
+	o->groundID=-1;
+
 	o->velocity=vect(0,0,0);
 	o->angularVelocity=vect(0,0,0);
 	o->moment=vect(0,0,0);
