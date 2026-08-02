@@ -1,3 +1,19 @@
+/**
+ * @file anorms2.h
+ * @brief The same 162 entry normal table as @ref anorms.h, as f32 vectors.
+ *
+ * Included as a bare initialiser list, exactly like @ref anorms.h -
+ * @code
+ * vect3D anorms_table2[162] =
+ *  #include "common/anorms2.h"
+ * ;
+ * @endcode
+ *
+ * The packed table is what gets submitted to the hardware; this one exists for
+ * the code that needs to compute with a normal - chiefly the backface tests in
+ * md2.c, which dot a face normal against the view direction.
+ */
+
 /*
  *	anorms.h - header file
  */

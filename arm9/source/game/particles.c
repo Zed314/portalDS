@@ -1,3 +1,12 @@
+/**
+ * @file particles.c
+ * @brief Particle effects. Entirely commented out.
+ *
+ * The system was cut for performance - see @ref particles.h. The file is kept
+ * so the implementation is still on record next to the calls in game.c that
+ * would have used it.
+ */
+
 #include "game/game_main.h"
 // Currently  not used
 /*

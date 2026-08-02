@@ -18,9 +18,35 @@ Or, for incremental builds straight into the working tree (the ROM and build/ en
     ./docker-build.sh               # same as "make", produces ./portalDS.nds
     ./docker-build.sh clean
     ./docker-build.sh dldipatch
+    ./docker-build.sh docs          # generate the API reference, see below
     ./docker-build.sh sh            # interactive shell inside the toolchain
 
 Set `BLOCKSDS_IMAGE` to pin a specific toolchain version; it defaults to `skylyrac/blocksds:slim-latest`.
+
+Documentation
+-------------
+
+The sources carry Doxygen comments: a file-level overview at the top of every
+file explaining what it does and how it fits together, plus documentation for
+each public type and function in the headers. If you are new to the codebase,
+the umbrella headers are the place to start — they lay out each half of the
+program in dependency order:
+
+- `common/include/PIC.h` — how the two CPUs split the work and talk to each other
+- `arm7/include/stdafx.h` — the ARM7 physics engine
+- `arm9/include/common/general.h` — the ARM9 as a whole
+- `arm9/include/game/game_main.h` — playing a test chamber
+- `arm9/include/editor/editor_main.h` — the level editor
+- `arm9/include/menu/menu_main.h` — the front end
+
+To build a browsable HTML reference from those comments:
+
+    make docs                       # needs doxygen installed locally
+    ./docker-build.sh docs          # or run doxygen in a container instead
+
+Either writes `docs/api/html/index.html`. Note that doxygen is *not* part of
+the BlocksDS toolchain image, so the Docker route pulls a small Alpine image
+and installs it there; set `DOXYGEN_IMAGE` to use your own image instead.
 
 This is pretty much the game's final version. It's not quite complete feature-wise but I have no plans on continuing it.
 The code is provided "as-is" (whatever that entails), and can be freely used so long as it's not for commercial purposes and that proper credit is given to the original author.

@@ -1,3 +1,24 @@
+/**
+ * @file camera.c
+ * @brief Camera transforms, projection and frustum construction.
+ *
+ * Implements @ref camera.h. Four groups of code:
+ *
+ *  - **matrix plumbing** - @ref multMatrix33 / @ref multMatrix44, the rotation
+ *    helpers, and @ref fixMatrix, which re-orthonormalises an orientation that
+ *    has drifted after repeated incremental rotation;
+ *  - **projection** - building the perspective and orthographic matrices by
+ *    hand rather than through libnds, because the portal cameras need exact
+ *    control and the bottom screen needs an off-centre variant;
+ *  - **the frustum** - @ref updateFrustum derives six inward-facing planes
+ *    from the current view, which the room culling then tests against. This
+ *    matters more here than in most engines: the room is drawn up to three
+ *    times a frame, so anything not rejected on the CPU is paid for three
+ *    times;
+ *  - **unprojection** - @ref getUnprojectedZLine turns a screen pixel back
+ *    into a world ray, which is how the editor's touch selection works.
+ */
+
 #include "game/game_main.h"
 
 #define mcoord(i,j) ((i)+(j)*4)

@@ -1,3 +1,15 @@
+/**
+ * @file pause.c
+ * @brief The pause menu.
+ *
+ * Implements @ref pause.h. @ref doPause takes over the frame loop while it is
+ * open, drawing its buttons over a dimmed copy of the frozen game frame - the
+ * level stays loaded throughout, so resuming is instant.
+ *
+ * Quitting from here calls @ref changeState, which as always defers the actual
+ * switch until the frame loop unwinds.
+ */
+
 #include "game/game_main.h"
 
 

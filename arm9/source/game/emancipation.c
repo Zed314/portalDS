@@ -1,3 +1,20 @@
+/**
+ * @file emancipation.c
+ * @brief Emancipation grids, and the disintegration effect.
+ *
+ * Implements @ref emancipation.h. Two halves that share a file because they
+ * always occur together:
+ *
+ *  - the grids themselves are pure queries - a box test called from
+ *    @ref listenPI9 as each rigid body's position arrives, and a ray test that
+ *    stops the portal gun firing through the field;
+ *  - the emancipator is the visual aftermath. It inherits the destroyed
+ *    object's model instance and orientation matrix, then spins it while
+ *    darkening it over @ref BLACKENINGTIME frames and fading it out over
+ *    @ref FADINGTIME. Since the real object is gone by then, this is the only
+ *    thing keeping it on screen.
+ */
+
 #include "game/game_main.h"
 
 emancipator_struct emancipators[NUMEMANCIPATORS];

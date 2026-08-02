@@ -1,3 +1,16 @@
+/**
+ * @file elevator.c
+ * @brief The lifts that carry the player between chambers.
+ *
+ * Implements @ref elevator.h. @ref updateElevator is a state machine walking
+ * @ref elevatorState_type strictly in order: arrive, open, wait, close, leave.
+ * The lift's collision floor and door face move and toggle with it, so the
+ * player is carried and then sealed in.
+ *
+ * Departure is what ends a level - see @ref updateWallDoors, which watches for
+ * it and calls @ref endGame.
+ */
+
 #include "game/game_main.h"
 
 #define ELEVATOR_SPEED (64)

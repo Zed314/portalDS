@@ -1,3 +1,18 @@
+/**
+ * @file selection.c
+ * @brief Dragging out a region of blocks, and the menu that follows it.
+ *
+ * Implements @ref selection.h. @ref updateSelection tracks the stylus, extends
+ * the box between the start face and the current one, and puts up whichever
+ * context menu matches the resulting shape - planar, ground or volume.
+ *
+ * @ref adjustSelection is the subtle one. After an edit the block faces the
+ * selection referred to may have been freed and regenerated, so the three faces
+ * are passed back in *by value* and the selection is re-resolved against the
+ * new face list. Holding the old pointers instead would be a use-after-free
+ * every time you dragged a wall.
+ */
+
 #include "editor/editor_main.h"
 
 selection_struct editorSelection;

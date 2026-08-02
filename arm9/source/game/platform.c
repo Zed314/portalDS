@@ -1,3 +1,15 @@
+/**
+ * @file platform.c
+ * @brief Moving platforms, game side.
+ *
+ * Implements the ARM9 half of @ref platform.h. The ARM7 owns the motion; this
+ * file forwards start/stop requests to it and reads the resulting positions
+ * back, deriving a velocity from the frame-to-frame change so that anything
+ * standing on a platform gets carried along.
+ *
+ * @see arm7/source/platform.c for the simulation itself.
+ */
+
 #include "game/game_main.h"
 
 #define LOGOSIZE (192)

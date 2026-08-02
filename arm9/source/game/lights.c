@@ -1,3 +1,16 @@
+/**
+ * @file lights.c
+ * @brief Point lights and the nearest-light search.
+ *
+ * Implements @ref lights.h. The pool itself is trivial; the interesting
+ * function is @ref getClosestLights, which does a linear scan keeping the best
+ * three.
+ *
+ * Three, because the DS lighting unit has four slots and one is spent on
+ * ambient. The result is cached per grid cell by @ref generateRoomGrid, so
+ * this runs when a room is built rather than when an object moves.
+ */
+
 #include "game/game_main.h"
 
 light_struct lights[NUMLIGHTS];

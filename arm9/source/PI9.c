@@ -1,3 +1,28 @@
+/**
+ * @file PI9.c
+ * @brief The game's side of the physics bridge: sending commands, reading results.
+ *
+ * Implements @ref PI9.h. Roughly three groups of code:
+ *
+ *  - **senders** - @ref createBox, @ref applyForce, @ref updatePortalPI and
+ *    friends. Each packs its arguments into FIFO words exactly as
+ *    @ref message_type describes and pushes them on @c FIFO_USER_08. Note that
+ *    trigonometry is done here rather than on the ARM7: @ref createBox sends a
+ *    sine and cosine, not an angle.
+ *
+ *  - **the receiver** - @ref listenPI9, which drains the reply channels once
+ *    per frame. It reconstructs each box's third orientation column as the
+ *    cross product of the other two (saving a FIFO word per box per frame),
+ *    and is also where a box that has landed in an emancipation grid or in
+ *    sludge is destroyed, since that is the moment its new position is known.
+ *
+ *  - **queries and drawing** - @ref collideRayBoxes for the portal and gravity
+ *    guns' picking, @ref intersectOBBPortal and @ref ejectPortalOBBs for boxes
+ *    straddling a portal, and the debug draws.
+ *
+ * @see arm7/source/PI7.c for the other end of every one of these calls.
+ */
+
 #include <nds.h>
 #include "game/game_main.h"
 

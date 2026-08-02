@@ -1,3 +1,29 @@
+/**
+ * @file normalize.c
+ * @brief Fast vector normalisation via a reciprocal square root.
+ *
+ * @ref normalize_arm7 is one of the hottest routines in the physics engine, so
+ * it avoids a divide entirely. Instead of computing the length and dividing by
+ * it, it computes 1/sqrt(len^2) directly and multiplies.
+ *
+ * The pipeline is:
+ *  1. an inline @c smull / @c smlal chain squares and sums the three
+ *     components at full 64 bit precision - the squared magnitude of a large
+ *     vector genuinely does not fit in 32 bits;
+ *  2. sqrt64_helper() normalises that into a fixed exponent range using
+ *     @c clz, so the core routine always sees an operand of known scale;
+ *  3. sqrt_core_asm() runs fourteen Newton-like refinement steps, again fully
+ *     branch-free using conditional adds;
+ *  4. each component is scaled by the result and the exponent shift is undone.
+ *
+ * The comments about overflow cancelling underflow in sqrt_core() are load
+ * bearing: the intermediate @c y deliberately wraps, and the subtraction that
+ * follows wraps back, so the final result is correct in modular arithmetic
+ * even though the intermediate is not.
+ *
+ * @see math.h for the @ref normalize wrapper the rest of the engine calls.
+ */
+
 //Copyright (C) 2026 Dominik Kurz
 
 //This program is free software; you can redistribute it and/or

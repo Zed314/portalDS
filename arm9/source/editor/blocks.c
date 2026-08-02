@@ -1,3 +1,24 @@
+/**
+ * @file blocks.c
+ * @brief The block array, block faces, and the conversion to rectangles.
+ *
+ * Implements @ref blocks.h - the editor's model of a level and the bridge back
+ * to the game's.
+ *
+ *  - **the array** - a dense grid of @ref BLOCK_TYPE words, each a bitfield of
+ *    solid/portalable/sludge flags. @ref getBlock reads out of range safely,
+ *    which is what lets the face generator inspect a block's neighbours without
+ *    special-casing the edges.
+ *  - **faces** - @ref generateBlockFacesRange rebuilds the visible faces over a
+ *    region. The @c outskirts flag matters: carving one block exposes faces on
+ *    the blocks around it, so the region has to be widened.
+ *  - **rectangles** - @ref generateOptimizedRectangles is the important one. It
+ *    builds an occupancy map per plane and repeatedly extracts the largest
+ *    rectangle from it (@ref getMaxRectangle), so a flat wall becomes a handful
+ *    of quads rather than one per block face. Without this no level would fit
+ *    in the polygon budget.
+ */
+
 #include "editor/editor_main.h"
 
 

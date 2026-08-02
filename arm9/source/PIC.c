@@ -1,3 +1,16 @@
+/**
+ * @file PIC.c
+ * @brief ARM9 implementation of the shared portal transport maths.
+ *
+ * The counterpart of arm7/source/PIC7.c: the same two functions, compiled for
+ * the other CPU. They must produce identical results, because the ARM7 uses
+ * them to teleport a cube's physics state while the ARM9 uses them to
+ * teleport the camera and to draw the view through a portal. Any disagreement
+ * shows up as a box appearing somewhere other than where it was drawn.
+ *
+ * @see common/include/PIC.h for what @ref warpVector actually does.
+ */
+
 #include "game/game_main.h"
 #include "../../common/include/PIC.h"
 ARM_CODE vect3D warpVector(portal_struct* p, vect3D v)

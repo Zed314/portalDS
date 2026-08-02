@@ -1,3 +1,18 @@
+/**
+ * @file menuscene.c
+ * @brief The animated background room and its terminal display.
+ *
+ * Implements @ref menuscene.h. The menu is set inside an actual 3D room drawn
+ * with the game's renderer, with cubes that spawn periodically, tumble and fade
+ * out.
+ *
+ * The terminal is the interesting part: @ref menuScreenText is a character grid
+ * rendered onto a screen in the scene, and @ref updateScreenList paints a
+ * scrollable list into it. So choosing a level means reading a monitor on the
+ * wall rather than a menu widget - the list scrolls when the cursor reaches the
+ * edge of the visible window, which is what screenList_struct::offset tracks.
+ */
+
 #include "menu/menu_main.h"
 
 
@@ -16,7 +31,6 @@ static menuBox_struct menuBoxes[NUMMENUBOXES];
 static void updateMenuBox(menuBox_struct* mb);
 /**
  * Moves and rotates all 3D boxes.
- * \param[inout] mb box to draw
  */
 static void updateMenuBoxes(void);
 

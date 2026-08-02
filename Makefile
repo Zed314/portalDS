@@ -58,7 +58,7 @@ ROM		:= $(NAME).nds
 # Targets
 # -------
 
-.PHONY: all clean arm9 arm7 dldipatch sdimage
+.PHONY: all clean arm9 arm7 dldipatch sdimage docs
 
 all: $(ROM)
 
@@ -66,7 +66,13 @@ clean:
 	@echo "  CLEAN"
 	$(V)$(MAKE) -f Makefile.arm9 clean --no-print-directory
 	$(V)$(MAKE) -f Makefile.arm7 clean --no-print-directory
-	$(V)$(RM) $(ROM) build $(SDIMAGE)
+	$(V)$(RM) $(ROM) build $(SDIMAGE) docs/api
+
+# API reference generated from the doc comments in the sources. Requires
+# doxygen, which is not part of the BlocksDS toolchain; install it separately.
+docs:
+	@echo "  DOXYGEN docs/api"
+	$(V)doxygen Doxyfile
 
 arm9:
 	$(V)+$(MAKE) -f Makefile.arm9 --no-print-directory

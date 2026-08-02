@@ -1,3 +1,28 @@
+/**
+ * @file player.c
+ * @brief The player: movement, the portal gun and the gravity gun.
+ *
+ * Implements @ref player.h.
+ *
+ * @par The gun
+ * @ref shootPlayerGun casts a ray from the camera and dispatches on its
+ * @p mode mask and on what it hit: press a timed button, grab a cube, or place
+ * a portal. Portal placement is the fussy one - the surface must be portalable
+ * and not behind an emancipation grid, and @ref isPortalOnWall then has to fit
+ * the whole portal onto it.
+ *
+ * @par The gravity gun
+ * There is no held-object constraint. While @ref gravityGunTarget is set,
+ * @ref updatePlayer simply overwrites that box's velocity each frame with a
+ * vector pointing at a spot in front of the camera, via @ref setVelocity. The
+ * box therefore chases the carry point rather than being attached to it, which
+ * is what makes a carried cube swing and bump into things convincingly.
+ *
+ * @par Drawing
+ * @ref renderGun draws the gun in first person, and @ref drawPlayer draws the
+ * body - which you only ever see through a portal.
+ */
+
 #include "game/game_main.h"
 
 

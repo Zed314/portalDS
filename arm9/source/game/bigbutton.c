@@ -1,3 +1,16 @@
+/**
+ * @file bigbutton.c
+ * @brief Floor buttons - pressed by standing on them, or by weighting them down.
+ *
+ * Implements @ref bigbutton.h. @ref updateBigButtons tests each button against
+ * the player's collision sphere and against every live rigid body; if the
+ * answer changed since last frame it calls @ref useActivator or
+ * @ref unuseActivator, which is what actually opens the door.
+ *
+ * The button's own model is animated from bigButton_struct::active, so the
+ * plate visibly sinks while something is on it.
+ */
+
 #include "game/game_main.h"
 
 static bigButton_struct bigButton[NUMBIGBUTTONS];

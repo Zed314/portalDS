@@ -1,6 +1,24 @@
+/**
+ * @file math.c
+ * @brief Out-of-line fixed point maths for the ARM7.
+ *
+ * The small, hot helpers live inline in @ref math.h; this file holds the ones
+ * that are too big to inline or that need hand written assembly:
+ *
+ *  - @ref sqrtv, which calls the assembly integer root and adds a Newton
+ *    refinement step for inputs large enough that the fast path loses bits;
+ *  - the 3x3 matrix operations (@ref multMatrix33, @ref transposeMatrix33,
+ *    @ref evalVectMatrix33, @ref rotateMatrixAxis, @ref fixMatrix);
+ *  - @ref asm_crossf32, a cross product written directly in ARM assembly so
+ *    each component is accumulated at full 64 bit precision with @c smull /
+ *    @c smlal and shifted back down without an intermediate spill.
+ *
+ * @see normalize.c and isqrt32.c for the square root primitives this builds on.
+ */
+
 #include "stdafx.h"
 
-uint32_t isqrt_asm(uint32_t);
+uint32_t isqrt_asm(uint32_t); /**< @brief Assembly integer square root; see isqrt32.c. */
 
 ARM_CODE __attribute__((noinline)) uint32_t sqrtv(uint32_t x)
 {

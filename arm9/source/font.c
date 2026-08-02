@@ -1,3 +1,17 @@
+/**
+ * @file font.c
+ * @brief Drawing text as textured quads.
+ *
+ * Implements @ref font.h. Both 2D backgrounds are used by the dual-screen 3D
+ * setup, so text cannot go through the DS's text engine - each character is
+ * drawn as a quad textured with one cell of a 16x16 glyph grid.
+ *
+ * @ref drawChar computes the cell from the character's ASCII code and submits
+ * four vertices; @ref drawString walks a string advancing by the render size.
+ * Since this goes through the 3D pipeline, text is subject to the same polygon
+ * budget as everything else - which is why the HUD is as sparse as it is.
+ */
+
 #include "common/general.h"
 
 #include <nds/arm9/image.h>

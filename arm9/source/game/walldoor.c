@@ -1,3 +1,19 @@
+/**
+ * @file walldoor.c
+ * @brief The chamber entry and exit doors, and their lifts.
+ *
+ * Implements @ref walldoor.h. Only two exist, @ref entryWallDoor and
+ * @ref exitWallDoor, each with an @ref elevator_struct embedded in it.
+ *
+ * @ref updateWallDoors drives both, and is where a level ends: once the exit
+ * lift has finished departing it calls @ref endGame, which either chains to the
+ * next chamber or returns to the menu.
+ *
+ * @ref drawWallDoors takes the portal being looked through because the lift
+ * interior sits outside the room geometry and has to be culled against the
+ * correct viewpoint - otherwise it pops in and out when seen through a portal.
+ */
+
 #include "game/game_main.h"
 
 #define DOORFRAMELENGTH (8)

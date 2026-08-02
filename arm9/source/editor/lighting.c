@@ -1,3 +1,16 @@
+/**
+ * @file lighting.c
+ * @brief Allocating and releasing baked lighting data.
+ *
+ * Implements @ref lighting.h. Only the storage: @ref initLightDataLM and
+ * @ref initLightDataVL size the buffers for whichever scheme a room uses, and
+ * @ref freeLightData releases whichever one is live.
+ *
+ * The actual bakes are elsewhere - @ref generateLightmaps and
+ * @ref generateVertexLighting in game/room.c - because they need the room
+ * geometry that this file knows nothing about.
+ */
+
 #include "editor/editor_main.h"
 
 #define A5I3

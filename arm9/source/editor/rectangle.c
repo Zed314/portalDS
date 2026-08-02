@@ -1,3 +1,22 @@
+/**
+ * @file rectangle.c
+ * @brief Rectangle packing for lightmap atlases, and rectangle geometry.
+ *
+ * Implements @ref rectangle.h.
+ *
+ * @ref packRectangles is binary-tree bin packing: the atlas starts as one empty
+ * node, and each rectangle placed splits the node it lands in into the occupied
+ * part and the leftovers. Rectangles are inserted largest first - the list is
+ * kept sorted for exactly this reason - because bin packing degrades badly if
+ * small items are placed before large ones. @ref packRectanglesSize wraps that
+ * in a search for an atlas size everything fits into.
+ *
+ * The rest is the rectangle maths used all over the game: ray intersection,
+ * closest-point queries for the sphere collision, and @ref bindMaterial, which
+ * picks a material's top/side/bottom slice from the face normal and builds the
+ * texture coordinates.
+ */
+
 #include "editor/editor_main.h"
 
 //implementation of http://www.drdobbs.com/database/the-maximal-rectangle-problem/184410529

@@ -1,3 +1,19 @@
+/**
+ * @file snprintf7_arm7.c
+ * @brief A minimal snprintf for the ARM7.
+ *
+ * The ARM7 has very little RAM and links against a cut-down libc, so pulling in
+ * the full newlib printf machinery is not an option. This is a small
+ * replacement, adapted from libnds, supporting just enough of the format
+ * language to write debug messages: the common integer, string and character
+ * conversions, with basic width and padding.
+ *
+ * It exists solely so @ref NOGBA works on the ARM7 side. Nothing in the shipped
+ * game calls it at runtime.
+ *
+ * @see arm7/include/debug.h
+ */
+
 #include <stdarg.h>
 #include <stdint.h>
 #include <errno.h>

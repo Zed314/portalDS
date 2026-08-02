@@ -1,3 +1,16 @@
+/**
+ * @file timedbutton.c
+ * @brief Wall buttons that release themselves after a delay.
+ *
+ * Implements @ref timedbutton.h. timedButton_struct::active is a frame
+ * countdown rather than a flag: @ref activateTimedButton sets it and fires the
+ * targets, @ref updateTimedButtons counts it down and releases them when it
+ * reaches zero.
+ *
+ * A button can be pressed by touching it or by shooting it, hence both
+ * @ref checkObjectTimedButtonsCollision and @ref collideRayTimedButtons.
+ */
+
 #include "game/game_main.h"
 
 #define BUTTONTIMER (7*30)

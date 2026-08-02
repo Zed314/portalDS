@@ -1,3 +1,18 @@
+/**
+ * @file PIC7.c
+ * @brief ARM7 implementation of the shared portal transport maths.
+ *
+ * Implements the two non-inline functions declared in @ref PIC.h. The ARM9 has
+ * its own copy of the same maths in PIC.c - the two must agree exactly, or a
+ * cube would come out of a portal somewhere different from where it is drawn.
+ *
+ * @ref warpVector is the heart of it: decompose the vector in the entry
+ * portal's frame, then rebuild it in the exit portal's frame with the normal
+ * and first tangent negated. That double flip is a 180 degree turn about the
+ * remaining axis, which is exactly what makes you emerge facing out of the far
+ * portal rather than back into it.
+ */
+
 #include "stdafx.h"
 #include "../../common/include/PIC.h"
 ARM_CODE vect3D warpVector(portal_struct* p, vect3D v)

@@ -1,3 +1,16 @@
+/**
+ * @file interface.c
+ * @brief The editor toolbar and its pause menu.
+ *
+ * Implements @ref interface.h. The toolbar is a fixed row of PCX icons, each
+ * tagged with the tool it selects; unlike the context menus these keep their
+ * own pressed state, so the active tool stays visibly held down.
+ *
+ * @ref pauseEditorInterface is the save/load/test/quit menu, and is where the
+ * editor calls @ref writeMapEditor - the point at which blocks are converted to
+ * rectangles, the lightmaps packed and the lighting baked.
+ */
+
 #include "editor/editor_main.h"
 
 #define NUMINTERFACEBUTTONS (15)

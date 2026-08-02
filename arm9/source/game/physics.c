@@ -1,3 +1,25 @@
+/**
+ * @file physics.c
+ * @brief Swept sphere collision for the player and the camera.
+ *
+ * Implements @ref physics.h. Nothing here talks to the ARM7: rigid bodies are
+ * simulated over there, while the player uses this much simpler move-then-push-
+ * out scheme, which gives the crisp movement a first-person game needs.
+ *
+ * checkObjectCollisionCell() is the core: for each rectangle in the cells the
+ * object overlaps, it works out how far the sphere has sunk in and corrects the
+ * position. The @c if(normGravityVector.x) branches scattered through it are
+ * there because "down" is a variable - see @ref changeGravity - so the code
+ * cannot assume Y is up.
+ *
+ * checkObjectElevatorCollision() is the odd one out: an elevator is a cylinder
+ * the player must be kept *inside* rather than outside, which is the inverse of
+ * every other case in the file.
+ *
+ * The author's own note at the top of checkObjectCollisionCell() about wanting
+ * to refactor this and switch to octrees is left in place.
+ */
+
 #include "game/game_main.h"
 
 #define PLAYERSIZEY (TILESIZE*3)

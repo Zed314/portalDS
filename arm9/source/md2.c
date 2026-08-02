@@ -1,3 +1,29 @@
+/**
+ * @file md2.c
+ * @brief MD2 model loading, display list baking and animation playback.
+ *
+ * Implements @ref md2.h. David HENRY's original loader, converted to fixed
+ * point and extended by smea. Three distinct jobs live here:
+ *
+ *  - **loading** (@ref loadMd2Model) - reads the file, then precomputes
+ *    everything it can: vertices expanded into f32 model space, vertices
+ *    packed into the hardware's VERTEX10 format, per-face normals, per-frame
+ *    bounding boxes, and the animation list derived from the frame names.
+ *
+ *  - **display list baking** (@ref generateModelDisplayLists) - turns each
+ *    frame into a ready-made command buffer for the geometry engine. This is
+ *    the difference between a model costing a DMA and costing hundreds of
+ *    register writes per frame, and is why loading is as slow as it is.
+ *
+ *  - **playback** (@ref updateAnimation, @ref changeAnimation) - advances an
+ *    instance's frame every four ticks, interpolating between keyframes. The
+ *    one-shot rule lives in @ref changeAnimation - a looping animation cannot
+ *    interrupt a one-shot, it is only remembered as what to return to.
+ *
+ * The @c anorms_table arrays near the top are Quake II's shared normal table,
+ * included from @ref anorms.h and @ref anorms2.h.
+ */
+
 /*
  * md2.c -- md2 model loader
  * last modification: aug. 14, 2007

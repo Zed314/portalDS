@@ -1,3 +1,27 @@
+/**
+ * @file main.c
+ * @brief ARM9 entry point, the three state definitions and the outer loop.
+ *
+ * Startup order matters here:
+ *  1. @c defaultExceptionHandler, so a crash shows a register dump rather than
+ *     a white screen;
+ *  2. @ref initFilesystem - if this fails there is nothing to load, so the
+ *     game prints a message and waits for START rather than continuing;
+ *  3. @c glInit, then optionally the address sanitizer;
+ *  4. @ref changeState / @ref applyState to select the first state.
+ *
+ * After that main() runs the state machine forever: init, frame until the
+ * state asks to end, kill, switch. See @ref state.h for how that works.
+ *
+ * @note The SELECT-held check before the final @c changeState is vestigial.
+ *       Whichever state it picks is immediately overridden by the
+ *       @c changeState(&menuState) that follows, so the game always starts at
+ *       the menu - which is where the editor is actually reachable from.
+ *
+ * doSPALSH() draws the splash screens. It is currently not called; the
+ * commented-out call sits just above the state selection.
+ */
+
 #include "common/general.h"
 
 

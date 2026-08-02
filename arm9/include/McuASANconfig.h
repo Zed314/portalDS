@@ -1,3 +1,15 @@
+/**
+ * @file McuASANconfig.h
+ * @brief Build-time configuration for @ref McuASAN.h.
+ *
+ * Every setting is guarded so any of them can be overridden
+ * from the Makefile without editing this file.
+ *
+ * The memory window described here is the DSi's: 16MB starting at 0x2000000.
+ * On an original DS only the first 4MB exists, which is harmless - the shadow
+ * map simply covers addresses that are never touched.
+ */
+
 /*
  * Copyright (c) 2021, Erich Styger
  *

@@ -1,3 +1,21 @@
+/**
+ * @file roomeditor.c
+ * @brief The editor's frame loop: camera, stylus picking and editing.
+ *
+ * Implements @ref roomeditor.h - where the editor's interaction actually
+ * happens.
+ *
+ * A touch becomes an edit in several steps: updateLineOfTouch() unprojects the
+ * stylus position into a world ray, transformRay() moves it into the room's
+ * frame, and getBlockFaceTouch() / getBlockEntityTouch() find what it hits.
+ * roomEditorCursor() then feeds that to the selection, and
+ * getDragPosition() turns continued dragging into a movement along the face's
+ * plane - which is what makes pulling a wall out feel direct rather than like
+ * operating a 3D gizmo.
+ *
+ * roomEditorControls() handles the camera on the shoulder buttons and d-pad.
+ */
+
 #include "editor/editor_main.h"
 
 

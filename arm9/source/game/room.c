@@ -1,3 +1,28 @@
+/**
+ * @file room.c
+ * @brief The level loader, and whole-room operations.
+ *
+ * Implements @ref room.h. Despite the name, the bulk of this file is the
+ * reader for the level format: readRectangles(), readEntity(),
+ * readLightingData() and @ref newReadMap, which stitches them together.
+ *
+ * @par readEntity
+ * The long switch here is effectively the level format's entity table. Each
+ * entity type is a tag followed by its own parameter layout, and the case
+ * ends by calling that entity's @c create* function. Adding an entity to the
+ * game means adding a case here and a matching writer in editor/io.c - and
+ * the two must agree exactly, since the format is positional with no
+ * self-description.
+ *
+ * addEntityTarget() is what rebuilds the trigger wiring: activators are stored
+ * as indices in the file and resolved back to pointers as entities are created.
+ *
+ * The rest of the file is whole-room geometry: @ref roomResetOrigin,
+ * @ref roomOriginSize, and @ref insertRoom, which merges a second room in at an
+ * offset and orientation - how multi-room levels are assembled from separately
+ * edited pieces.
+ */
+
 #include "game/game_main.h"
 #include "editor/io.h"
 #include "editor/entity.h"

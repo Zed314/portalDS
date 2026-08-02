@@ -1,9 +1,26 @@
+/**
+ * @file LUTs.h
+ * @brief Precomputed square root tables.
+ *
+ * A two-stage lookup: @ref sqrtLUT1 covers the integer part of the input and
+ * @ref sqrtLUT2 refines it across the fractional range, avoiding an iterative
+ * square root on a CPU with no divide instruction.
+ *
+ * @note Superseded by the hand written routines in isqrt32.c and normalize.c,
+ *       which are both faster and more accurate. This header is no longer
+ *       included by anything, but is kept because the tables are useful if you
+ *       ever need a branch-free root.
+ * @warning The tables are defined, not declared, so including this from more
+ *          than one translation unit will produce duplicate symbols.
+ */
+
 #ifndef LUTS_H
 #define LUTS_H
 
-#define SQRTRANGE (512)
-#define SQRTPRECISION (4096)
+#define SQRTRANGE (512)      /**< Number of coarse entries; covers inputs up to 512. */
+#define SQRTPRECISION (4096) /**< Fractional resolution of the refinement table. */
 
+/** @brief Coarse table: square root of each integer up to @ref SQRTRANGE, in f32. */
 const int32 sqrtLUT1[SQRTRANGE]=
 	{0, 4096, 5792, 7094, 8192, 9158, 10033, 10836, 11585, 12288, 12952, 13584, 14188, 14768, 15325, 15863, 16384, 16888, 17377, 17854, 18317, 18770, 19211, 19643, 20066, 20480, 20885, 21283, 21673, 22057, 22434, 22805, 23170, 23529, 23883, 24232, 24576, 24914, 25249, 25579, 25905, 26227, 26545, 26859, 27169, 27476, 27780, 28080, 28377, 28672, 28963, 29251, 29536, 29819, 30099, 30376, 30651, 30924, 31194, 31461, 31727, 31990, 32251, 32510, 32768, 
 	33023, 33276, 33527, 33776, 34023, 34269, 34513, 34755, 34996, 35235, 35472, 35708, 35942, 36174, 36406, 36635, 36864, 37090, 37316, 37540, 37763, 37984, 38204, 38423, 38641, 38858, 39073, 39287, 39500, 39712, 39922, 40132, 40340, 40548, 40754, 40960, 41164, 41367, 41569, 41771, 41971, 42170, 42369, 42566, 42763, 42959, 43154, 43347, 43541, 43733, 43924, 44115, 44305, 44493, 44682, 44869, 45056, 45241, 45426, 45611, 45794, 45977, 46159, 46340, 

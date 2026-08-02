@@ -1,3 +1,17 @@
+/**
+ * @file sludge.c
+ * @brief Toxic goo surfaces.
+ *
+ * Implements @ref sludge.h. Sludge has no entity: the level loader registers
+ * ordinary rectangles as goo, and this file keeps the list and answers "is this
+ * in it" queries.
+ *
+ * @ref collideBoxSludge is called from @ref listenPI9 as each rigid body's new
+ * position arrives, alongside the emancipation grid test - the two hazards
+ * destroy things in exactly the same way, and a cube lost to either is
+ * re-dispensed rather than left at the bottom of the pit.
+ */
+
 #include "game/game_main.h"
 
 static rectangleList_struct sludgeRectangleList;

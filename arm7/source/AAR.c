@@ -1,6 +1,27 @@
+/**
+ * @file AAR.c
+ * @brief Static collision geometry: axis aligned rectangles and their broadphase grid.
+ *
+ * Implements @ref AAR.h. Three things live here:
+ *
+ *  - the rectangle pool and the accessors the FIFO commands drive
+ *    (@ref createAAR, @ref updateAAR, @ref toggleAAR);
+ *  - the broadphase, @ref generateGrid, which bins rectangles into XZ cells so
+ *    a body only tests against nearby geometry, and shrinks its resolution
+ *    until the node array fits in the ARM7's small heap;
+ *  - contact generation, @ref AAROBBContacts and its helper OBBAARContacts,
+ *    which clip a box against a rectangle and emit @ref AARCOLLISION contacts.
+ *
+ * Contacts that fall inside an open portal's outline are suppressed
+ * (@c pointInPortal), which is what lets a cube fly through a wall, and the
+ * funnel of guide rectangles built by @ref generateGuidAAR stops it catching
+ * on the rim on the way.
+ *
+ * @see OBB.c for the solver that consumes these contacts.
+ */
 
 #include "stdafx.h"
-#define ALLOCATORSIZE (8*1024) //may cause problems !
+#define ALLOCATORSIZE (8*1024) /**< Heap budget for the broadphase node array. */ //may cause problems !
 
 //static u8 allocatorPool[ALLOCATORSIZE];
 static u16 allocatorCounter=0;

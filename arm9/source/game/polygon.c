@@ -1,3 +1,19 @@
+/**
+ * @file polygon.c
+ * @brief Polygon construction, clipping and projection for portal shapes.
+ *
+ * Implements @ref polygon.h. Polygons are singly linked vertex rings drawn from
+ * a fixed pool, because clipping allocates and frees vertices several times per
+ * frame and the heap is not the place for that.
+ *
+ * @ref clipPolygonFrustum runs the classic Sutherland-Hodgman algorithm one
+ * plane at a time, and @ref projectPolygon then generates the texture
+ * coordinates that map a portal's captured screen image onto its outline.
+ *
+ * If portals stop drawing after a while, suspect a leaked polygon: the pool is
+ * @ref POLYPOOLSIZE vertices and nothing reclaims them automatically.
+ */
+
 #include "game/game_main.h"
 
 //extern camera_struct playerCamera;

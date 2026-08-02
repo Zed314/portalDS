@@ -1,6 +1,29 @@
+/**
+ * @file PI7.c
+ * @brief FIFO command decoder and result sender for the ARM7 physics engine.
+ *
+ * Implements @ref PI7.h. This is the entire interface between the two CPUs on
+ * the ARM7 side: @ref listenPI7 is one big switch over @ref message_type that
+ * unpacks each command's arguments word by word, and @ref sendDataPI7 pushes
+ * the resulting object transforms back.
+ *
+ * @par Why the busy waits
+ * Each @c while(!fifoCheckValue32(...)) loop waits for the next argument word
+ * of a command whose header has already been read. The ARM9 always writes a
+ * complete command in one go, so these loops are short and bounded - but a
+ * desynchronised stream would hang here, which is why the @c default case
+ * flushes the whole queue rather than trying to resynchronise.
+ *
+ * @par Bandwidth
+ * Results are packed hard on the way back: two 16 bit matrix elements per
+ * word, and the ground id and portal flag folded into the header word. Only
+ * awake bodies are sent at all, which is what keeps a busy room within the
+ * FIFO's budget.
+ */
+
 #include "stdafx.h"
 
-static bool PI7running;
+static bool PI7running; /**< True between @ref PI_START and the next pause or stop. */
 player_struct player;
 portal_struct portal[2];
 

@@ -1,3 +1,17 @@
+/**
+ * @file platform.c
+ * @brief Moving platforms: motion along a fixed run, and carrying whatever rides them.
+ *
+ * Implements @ref platform.h. A platform travels at a constant speed between
+ * its origin and destination; updatePlatform() detects arrival by testing the
+ * sign of the dot product between the remaining distance and the velocity,
+ * which works regardless of which way the run points.
+ *
+ * @ref collideOBBPlatforms is where the carrying happens: a body resting on a
+ * platform is displaced by the platform's own motion before its own physics
+ * runs, so it rides along instead of being left behind or shoved by an impulse.
+ */
+
 #include "stdafx.h"
 
 platform_struct platform[NUMPLATFORMS];

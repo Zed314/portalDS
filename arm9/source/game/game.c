@@ -1,3 +1,27 @@
+/**
+ * @file game.c
+ * @brief The game state: setup, the frame loop, and the render passes.
+ *
+ * Implements @ref game_ex.h and is the top of the game half of the program.
+ *
+ * @par initGame
+ * Order matters and is not arbitrary: video modes and VRAM banks, then the 3D
+ * engine, then textures and sound, then every entity pool, then the map - and
+ * only then @ref transferRectangles, @ref makeGrid and @ref startPI, because
+ * the ARM7 must not begin simulating until the collision world it will
+ * simulate against exists.
+ *
+ * @par The frame
+ * render1() and its companions do the work, and the ordering is forced by the
+ * hardware: the view through each open portal must be rendered and captured
+ * *before* the main view, because the main view uses those captures as
+ * textures. So one displayed frame is up to three passes over the room, which
+ * is why so much of the rest of the codebase is preoccupied with culling.
+ *
+ * postProcess() runs over the finished frame buffer; @c cpuEndSlice() is the
+ * profiling hook whose results the commented-out @c iprintf calls report.
+ */
+
 #include "game/game_main.h"
 
 bool currentBuffer;

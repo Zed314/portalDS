@@ -1,3 +1,17 @@
+/**
+ * @file compression.c
+ * @brief 16 bit run-length compression for level data.
+ *
+ * Implements @ref compress.h. Adapted from GRIT, with the unit widened from
+ * bytes to @c u16 because level data is an array of 16 bit block ids - byte
+ * RLE would break every run in half at the high byte and compress almost
+ * nothing.
+ *
+ * The stream keeps GBA/DS BIOS-style framing: a header word holding a format
+ * tag and the 24 bit decompressed size, then alternating literal and run
+ * blocks.
+ */
+
 #include "common/general.h"
 
 // code borrowed from GRIT

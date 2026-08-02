@@ -1,3 +1,27 @@
+/**
+ * @file textures.c
+ * @brief The VRAM allocator and texture upload paths.
+ *
+ * Implements @ref textures.h. The awkwardness in this file all comes from one
+ * hardware constraint: a VRAM bank is either mapped for the CPU to write, or
+ * mapped for the 3D engine to read from as texture memory - never both. So
+ * textures are packed into banks with a simple bump allocator while the banks
+ * are CPU-visible, and the addresses computed then are baked into each
+ * texture's mtlImg_struct::param word for use later.
+ *
+ * The upload functions come in families because the hardware has several
+ * texture formats and the sources differ: @c createTexture* allocates and
+ * uploads in one go, @c loadTexture* fills an allocation that already exists,
+ * and the @c A5I3 variants handle the alpha format used for portal outlines
+ * and particles.
+ *
+ * @ref createReservedTextureBufferA5I3 and @ref changeTextureSizeA5I3 exist
+ * for the portal view textures specifically: their pixels are written by the
+ * display capture unit rather than the CPU, so the allocation must land at a
+ * fixed address and be re-described rather than moved when the visible size
+ * changes.
+ */
+
 #include "common/general.h"
 
 u8 vramBanks;

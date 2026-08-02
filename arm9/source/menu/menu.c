@@ -1,3 +1,19 @@
+/**
+ * @file menu.c
+ * @brief The menu state: setup, frame loop and teardown.
+ *
+ * Implements @ref menu_ex.h. Sets up the video modes and the 3D engine, brings
+ * up the background scene and the first page, and configures the hardware
+ * lighting and toon shading the menu room is drawn with.
+ *
+ * Note that it calls @ref initD3D - the menu uses both screens for 3D, so the
+ * logo and the scene can occupy one each.
+ *
+ * The frame loop is short - update the scene, update the camera transition,
+ * draw - because the buttons handle themselves through @ref simplegui.h and the
+ * state switches happen in menupage.c.
+ */
+
 #include "menu/menu_main.h"
 
 

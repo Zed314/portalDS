@@ -1,3 +1,33 @@
+/**
+ * @file portals.c
+ * @brief Portals: placement, rendering, and walking through them.
+ *
+ * Implements @ref portals.h - the heart of the game.
+ *
+ * @par Rendering
+ * @ref updatePortalCamera warps the player's camera through to the far portal,
+ * both position and each column of the orientation matrix.
+ * @ref drawPortalRoom then renders the room from there into
+ * portal_struct::viewPoint, and @ref drawPortal draws that capture onto the
+ * portal's outline. The outline is a clipped ellipse, not a quad - see
+ * @ref polygon.h.
+ *
+ * @par Walking through
+ * checkPortalPlayerWarp() watches the sign of the player's distance to the
+ * portal plane, remembered in portal_struct::oldZ. When it flips while the
+ * player is inside the outline, warpPlayer() moves the camera and its velocity
+ * to the far side. Rigid bodies cross independently on the ARM7 - see
+ * @ref updateOBBPortals.
+ *
+ * @par Placement
+ * @ref movePortal with @c actualMove clear is a trial placement: geometry only,
+ * nothing sent to the ARM7 and no display list rebuilt. That is what
+ * @ref isPortalOnWall uses while it slides a candidate portal around looking
+ * for a position that fits entirely on one portalable surface, and
+ * @ref portalToPortalIntersection then checks it does not overlap the other
+ * portal.
+ */
+
 #include "game/game_main.h"
 
 portal_struct portal1, portal2;

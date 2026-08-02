@@ -1,3 +1,19 @@
+/**
+ * @file ASAN.twl.c
+ * @brief Address sanitizer runtime, DSi build.
+ *
+ * The implementation behind @ref McuASAN.h - a shadow map marking every byte of
+ * the tracked memory window as accessible or poisoned, checked-allocation
+ * wrappers that surround each block with red zones, and a quarantine list that
+ * delays reuse of freed blocks so use-after-free is caught rather than
+ * silently working.
+ *
+ * The @c .twl. in the file name is a BlocksDS convention: this translation unit
+ * is built for the DSi, whose larger memory window the shadow map is sized for
+ * (see @ref McuASANconfig.h). The whole thing compiles away unless
+ * @c McuASAN_CONFIG_IS_ENABLED is set, so it costs nothing in normal builds.
+ */
+
 //Copyright (C) 2025 Dominik Kurz
 
 //This program is free software; you can redistribute it and/or

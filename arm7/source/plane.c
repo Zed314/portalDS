@@ -1,3 +1,14 @@
+/**
+ * @file plane.c
+ * @brief Infinite plane primitives and box-versus-plane contacts.
+ *
+ * Implements @ref plane.h. Legacy code from before the world was made of
+ * axis aligned rectangles - nothing in the shipped game creates a plane any
+ * more, but @ref planeOBBContacts is the simplest example of how contact
+ * generation works and the @ref PLANECOLLISION path is still live in the
+ * impulse solver.
+ */
+
 #include "stdafx.h"
 
 ARM_CODE void initPlane(plane_struct* pl, int32 A, int32 B, int32 C, int32 D)

@@ -1,3 +1,20 @@
+/**
+ * @file pcx.c
+ * @brief PCX image decoding.
+ *
+ * Implements @ref pcx.h. David HENRY's loader, handling the 8 bit palettised
+ * RLE variant of PCX - which is every image in the game.
+ *
+ * The decoder is a straightforward run-length expansion: a byte with its top
+ * two bits set is a run count followed by the value to repeat, anything else
+ * is a literal. The palette lives in the last 769 bytes of the file, after a
+ * 0x0C marker, and is converted from 24 bit RGB to the DS's 15 bit BGR here.
+ *
+ * @ref convertPCX16Bit expands the indexed result into direct colour for the
+ * cases that need a raw bitmap - the splash screens and the editor's
+ * screenshots - rather than a palettised texture.
+ */
+
 /*
 * pcx.c -- pcx texture loader
 * last modification: aug. 14, 2007

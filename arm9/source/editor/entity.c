@@ -1,3 +1,22 @@
+/**
+ * @file entity.c
+ * @brief The entity type table, and placing entities on block faces.
+ *
+ * Implements @ref entity.h. The bulk of this file is the static
+ * @ref entityType_struct table: one row per placeable object, giving its model,
+ * which faces it may be mounted on, its context menu and any behaviour hooks.
+ * Adding an entity to the editor is normally a matter of adding a row.
+ *
+ * The rest keeps entities attached to the geometry.
+ * @ref getEntityBlockFacesRange is called after every edit and re-resolves each
+ * entity's mounting face - with @c delete set, an entity whose face no longer
+ * exists is removed, which is what happens when you carve away the floor a
+ * button was standing on.
+ *
+ * @ref generateLightsFromEntities turns the placed light entities into the
+ * @ref light_struct list the lighting bake consumes.
+ */
+
 #include "editor/editor_main.h"
 
 static mtlImg_struct* pointTexture;

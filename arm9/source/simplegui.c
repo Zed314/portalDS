@@ -1,6 +1,18 @@
+/**
+ * @file simplegui.c
+ * @brief The touch screen button pool.
+ *
+ * Implements @ref simplegui.h. A flat array of buttons, hit-tested linearly
+ * against the touch position - with at most @ref NUMSIMPLEBUTTONS of them and
+ * one touch point, there is no reason for anything cleverer.
+ *
+ * Buttons are drawn as textured or flat-shaded quads through the 3D engine,
+ * with their labels drawn on top by font.c.
+ */
+
 #include "common/general.h"
 
-static sguiButton_struct simpleButtons[NUMSIMPLEBUTTONS];
+static sguiButton_struct simpleButtons[NUMSIMPLEBUTTONS]; /**< The button pool. */
 
 void initSimpleButtons(void)
 {

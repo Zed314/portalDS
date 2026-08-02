@@ -1,3 +1,24 @@
+/**
+ * @file io.c
+ * @brief Reading and writing level files.
+ *
+ * Implements @ref io.h. @ref writeMapEditor is the expensive half of the
+ * editor: it compresses the block array, runs
+ * @ref generateOptimizedRectangles, packs the lightmap atlas, bakes the
+ * lighting and writes all of it out with a header of section offsets.
+ *
+ * @par Keep this in step with room.c
+ * writeEntity() here and readEntity() in game/room.c are two halves of the same
+ * format. It is positional with no self-description, so adding a field to one
+ * without the other silently corrupts every entity after it. readEntityEditor()
+ * in this file is the editor's own reader, which additionally restores the
+ * entity's editing state.
+ *
+ * adaptVector() converts between the game's world coordinates and the editor's
+ * per-face frames, and is applied on both the write and read paths - which is
+ * why an asymmetry there is so hard to spot.
+ */
+
 #include "editor/editor_main.h"
 
 static mapHeader_struct blankHeader=(mapHeader_struct){0,0,0,0,0};

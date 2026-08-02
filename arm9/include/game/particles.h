@@ -1,3 +1,17 @@
+/**
+ * @file particles.h
+ * @brief Particle effects. Entirely disabled.
+ *
+ * The whole system is commented out. It was cut for performance: with the room
+ * already being rendered up to three times a frame for the portal views, there
+ * was no polygon budget left for hundreds of sprites. The calls to
+ * initParticles(), updateParticles() and drawParticles() are still present in
+ * game.c, commented out alongside their declarations here.
+ *
+ * Kept because the effects it was written for - the emancipation flash, energy
+ * ball impacts - are still described in the code that would have called it.
+ */
+
 #ifndef __PARTICLES9__
 #define __PARTICLES9__
 

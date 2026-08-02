@@ -1,3 +1,17 @@
+/**
+ * @file displaylist.c
+ * @brief Recording geometry commands into a display list buffer.
+ *
+ * Implements @ref displaylist.h. Each function mirrors a @c gl* call but
+ * appends the command word to a buffer instead of writing it to the geometry
+ * engine's registers, so the whole thing can later be replayed with a single
+ * DMA.
+ *
+ * There is one recording buffer and a single pointer into it, which is why
+ * lists cannot be nested or built concurrently. The buffer is grown as needed
+ * and handed to the caller by @ref glEndListDL.
+ */
+
 #include "game/game_main.h"
 
 #define RESERVED_SIZE_DISPLAY_LISTS   (64*1024) //TEMP?

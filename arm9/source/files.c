@@ -1,3 +1,20 @@
+/**
+ * @file files.c
+ * @brief Bringing up NitroFS and FAT, and reading whole files.
+ *
+ * Implements @ref files.h. @ref initFilesystem is the interesting part: it
+ * tries NitroFS first (the read-only filesystem inside the .nds, where all the
+ * shipped assets live) and then, if a FAT device is present, creates the
+ * writable @c asds directory tree on the card for saves, editor levels and
+ * screenshots.
+ *
+ * Neither half is required for the other. Running from an unpatched ROM gives
+ * NitroFS but no card, so the game plays and the editor cannot save; running
+ * from a card with no NitroFS falls back to reading everything off FAT.
+ * Failure to create the writable directories is not fatal - it just disables
+ * saving.
+ */
+
 #include "common/general.h"
 #include <errno.h>
 

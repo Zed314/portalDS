@@ -1,0 +1,101 @@
+# Doxygen configuration for portalDS.
+#
+# Generates a browsable API reference from the doc comments in the ARM7 and
+# ARM9 sources.  Run "make docs" from the repository root (requires doxygen to
+# be installed; it is not part of the BlocksDS toolchain), then open
+# docs/api/html/index.html.
+#
+# Only options that differ from the doxygen defaults are listed here, so this
+# file stays readable.  Run "doxygen -u Doxyfile" if you ever want doxygen to
+# expand it into a fully commented configuration.
+
+# Project identity
+# ----------------
+
+PROJECT_NAME           = portalDS
+PROJECT_BRIEF          = "Aperture Science DS - a homebrew adaptation of Portal for the Nintendo DS"
+PROJECT_LOGO           = logo.png
+OUTPUT_DIRECTORY       = docs/api
+
+# Input
+# -----
+#
+# The two CPUs and the code shared between them.  build/ is excluded because it
+# only holds generated artwork/soundbank blobs, and reference/ is excluded
+# because it holds third party material that is not part of the game.
+
+INPUT                  = arm7 arm9 common README.md
+FILE_PATTERNS          = *.c *.h *.md
+RECURSIVE              = YES
+EXCLUDE                = build reference
+USE_MDFILE_AS_MAINPAGE = README.md
+
+# What to document
+# ----------------
+#
+# This is a game, not a library: most interesting state lives in file-static
+# variables and undocumented helpers, so pull everything in rather than only
+# the explicitly documented entities.
+
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_LOCAL_CLASSES  = YES
+
+# Presentation
+# ------------
+
+JAVADOC_AUTOBRIEF      = YES
+OPTIMIZE_OUTPUT_FOR_C  = YES
+TYPEDEF_HIDES_STRUCT   = YES
+SORT_MEMBER_DOCS       = NO
+TAB_SIZE               = 4
+GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = TOGGLE
+DISABLE_INDEX          = NO
+
+# Diagrams
+# --------
+#
+# Struct/include relationships are drawn with doxygen's built-in generator so
+# that graphviz is not a hard requirement.
+
+HAVE_DOT               = NO
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = NO
+
+# Output formats
+# --------------
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+
+# Preprocessing
+# -------------
+#
+# Both CPUs are parsed in a single run.  Defining ARM9 (and not ARM7) picks one
+# consistent side of the "#ifdef ARM7" blocks in the shared headers; the ARM7
+# variants are still listed, just marked as conditionally compiled.
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = arm7/include arm9/include common/include
+PREDEFINED             = ARM9 \
+                         __GNUC__ \
+                         ITCM_CODE= \
+                         DTCM_DATA= \
+                         ARM_CODE=
+
+# Warnings
+# --------
+#
+# Undocumented entities are expected for now (this is a large legacy codebase),
+# so only complain about doc comments that are actually wrong.
+
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO

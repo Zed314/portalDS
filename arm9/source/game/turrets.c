@@ -1,3 +1,18 @@
+/**
+ * @file turrets.c
+ * @brief Sentry turrets: line of sight, laser sight and firing.
+ *
+ * Implements @ref turrets.h. A turret is both an entity and an ARM7 rigid body,
+ * which is what lets it be knocked over - @ref updateTurrets checks the body's
+ * orientation matrix each frame and marks the turret dead once it is no longer
+ * upright.
+ *
+ * The laser sight is a ray cast forward. If it meets an open portal the beam is
+ * continued out of the far one, filling in the second pair of endpoints in
+ * @ref turret_struct - and the turret's fire follows the same path, so it can
+ * genuinely shoot the player through a portal.
+ */
+
 #include "game/game_main.h"
 
 #define TURRET_SIGHTANGLE (5144)

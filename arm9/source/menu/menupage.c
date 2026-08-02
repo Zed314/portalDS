@@ -1,3 +1,19 @@
+/**
+ * @file menupage.c
+ * @brief The menu's pages, and where the game and editor are launched.
+ *
+ * Implements @ref menupage.h. Each page is a function that clears the buttons,
+ * builds the new set, and starts a camera transition to that page's viewpoint.
+ *
+ * This is the branch point of the whole program: the button callbacks here are
+ * what call @ref setMapFilePath followed by @c changeState(&gameState), or
+ * @ref setEditorMapFilePath followed by @c changeState(&editorState). Every
+ * other part of the menu is presentation.
+ *
+ * The level lists are read off the filesystem and rendered onto the in-scene
+ * terminal as a @ref screenList_struct - see @ref menuscene.h.
+ */
+
 #include "menu/menu_main.h"
 
 #include <dirent.h>

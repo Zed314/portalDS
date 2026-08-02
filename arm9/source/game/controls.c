@@ -1,3 +1,22 @@
+/**
+ * @file controls.c
+ * @brief Input mapping and the touch screen look control.
+ *
+ * Implements @ref controls.h. The mapping is table-driven: every action is a
+ * @c controlActionFunction, @c controlFunctions[] indexes them, and
+ * @ref loadControlConfiguration reads an ini file naming which physical input
+ * drives which action. That is why adding a control means adding a function, an
+ * enum entry and a string - and nothing else.
+ *
+ * Each action handler receives both @c down (pressed this frame) and @c held,
+ * so a single entry can distinguish a tap from a hold - which is how the same
+ * trigger both fires the gun and holds a cube.
+ *
+ * The look control is separate from the table: dragging on the touch screen
+ * rotates the camera directly in @ref updateControls, with @ref touchCnt
+ * separating a tap (switch portal colour) from a drag (look around).
+ */
+
 #include "game/game_main.h"
 
 

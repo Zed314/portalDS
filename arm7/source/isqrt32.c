@@ -1,3 +1,20 @@
+/**
+ * @file isqrt32.c
+ * @brief Branch-free 32 bit integer square root in ARM assembly.
+ *
+ * Computes a root by the classic restoring shift-and-subtract method: sixteen
+ * fixed iterations, each testing one bit pair of the result. The whole thing is
+ * written with conditional ARM instructions (@c subcs, @c adc) so there is not
+ * a single branch in the loop body, which matters a great deal on the ARM7's
+ * shallow pipeline and complete absence of a divide instruction.
+ *
+ * The rotate-based addressing (@c ror @c %[i]) is what lets one instruction
+ * sequence handle every bit position without a shift table.
+ *
+ * Called via @ref sqrtv in math.c, which adds a refinement step for large
+ * inputs.
+ */
+
 // SPDX-License-Identifier: Zlib
 //
 // Copyright (C) 2025 Dominik Kurz

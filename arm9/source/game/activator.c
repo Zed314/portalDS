@@ -1,3 +1,17 @@
+/**
+ * @file activator.c
+ * @brief Dispatching a trigger to whatever it drives.
+ *
+ * Implements @ref activator.h. Almost all of it is the switch on
+ * @ref activatorTarget_type in useActivator()/unuseActivator(), which casts
+ * each stored @c void* back to its real type and calls the right thing:
+ * dispensers dispense, platforms start, doors open.
+ *
+ * Adding a new triggerable entity means adding a tag to the enum and a case to
+ * both switches - the type tag is the entire dispatch mechanism, since C has
+ * nothing better to offer here.
+ */
+
 #include "game/game_main.h"
 
 void initActivator(activator_struct* a)

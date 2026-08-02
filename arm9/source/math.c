@@ -1,6 +1,17 @@
+/**
+ * @file math.c
+ * @brief Out-of-line maths helpers for the ARM9.
+ *
+ * Almost everything in @ref common/math.h is inline; what is left here is the
+ * angle code from Mollusk's PAlib-era library - @ref ArcTan2 and
+ * @ref Math_AdjustAngle - which works in the 0-511 angle convention rather
+ * than libnds' 15 bit one. See the note in common/math.h about not mixing the
+ * two.
+ */
+
 #include "common/general.h"
 
-#define MAX_ANGLE   512
+#define MAX_ANGLE   512 /**< A full turn in the 0-511 angle convention. */
 #define ABS(x)   ((x) < 0 ? -(x) : (x))
 
 static const u32 arctan2_tab[129] =

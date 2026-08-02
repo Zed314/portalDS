@@ -1,3 +1,40 @@
+/**
+ * @file main.c
+ * @brief ARM7 entry point and main loop.
+ *
+ * Started life as the stock libnds ARM7 core (the licence below is theirs) and
+ * still does that job: sound, touch screen, user settings and the system FIFO
+ * are all handled by libnds' default handlers installed in @ref main.
+ *
+ * What is added on top is the physics engine. mainLoop() alternates between
+ * draining the ARM9's command queue and stepping the simulation:
+ *
+ * @code
+ * while(!exitflag)
+ * {
+ *     if(getPI7Status())          // only when the ARM9 has said PI_START
+ *     {
+ *         for(int i=0;i<5;i++)    // five substeps per displayed frame
+ *         {
+ *             listenPI7();        // apply anything the ARM9 queued
+ *             updatePlatforms();
+ *             updateOBBs();
+ *         }
+ *         sendDataPI7();          // ship the results back once
+ *     }
+ *     listenPI7();                // keep draining even while paused
+ *     swiWaitForVBlank();
+ * }
+ * @endcode
+ *
+ * The five substeps are what make stacked cubes stable: the solver is run at
+ * five times the display rate but results are only transmitted once per frame,
+ * so the extra accuracy costs no FIFO bandwidth.
+ *
+ * Holding SELECT+START+L+R at any time sets @c exitflag and returns to the
+ * launcher.
+ */
+
 /*---------------------------------------------------------------------------------
 
 	default ARM7 core

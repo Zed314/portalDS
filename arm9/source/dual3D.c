@@ -1,6 +1,25 @@
+/**
+ * @file dual3D.c
+ * @brief Driving the single 3D engine so that both screens show 3D.
+ *
+ * Implements @ref dual3D.h. The DS has one 3D engine and it can only output to
+ * one screen, so this alternates: each frame renders for one screen, the
+ * display capture unit freezes the result into a VRAM bank, and that bank is
+ * shown as a bitmap background on the screen it belongs to while the engine
+ * moves on to the other one.
+ *
+ * The consequence to keep in mind when reading the game code is that each
+ * screen updates at 30Hz, and that @ref d3dScreen tells you which screen is
+ * being rendered *right now* - a lot of drawing code branches on it to decide
+ * what to submit.
+ *
+ * Sprites are used on top of the captured bitmap for the parts of the HUD that
+ * must stay sharp and update every frame regardless of the capture cycle.
+ */
+
 #include "common/general.h"
 
-#define DUAL3D_N_SPRITES 128
+#define DUAL3D_N_SPRITES 128 /**< Size of the sprite pool used for HUD overlays. */
 
 static SpriteEntry d3dSprites[DUAL3D_N_SPRITES];
 bool d3dScreen;

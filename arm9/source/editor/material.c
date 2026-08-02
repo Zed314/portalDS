@@ -1,3 +1,15 @@
+/**
+ * @file material.c
+ * @brief Loading the material and texture slice tables from ini files.
+ *
+ * Implements @ref material.h. Both tables are described in "slices.ini" and
+ * "materials.ini" and read with @ref iniparser.h, so artwork can be changed and
+ * new surfaces added without rebuilding the ROM.
+ *
+ * Slices must be loaded first, since a material entry names its three slices
+ * (top, side, bottom) by name and they have to already exist to be resolved.
+ */
+
 #include "editor/editor_main.h"
 
 material_struct materials[NUMMATERIALS];

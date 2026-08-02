@@ -1,3 +1,19 @@
+/**
+ * @file energyball.c
+ * @brief High energy pellets, their launchers and their catchers.
+ *
+ * Implements @ref energyball.h. Pellets are not rigid bodies - they travel in
+ * a straight line at constant speed, reflect off walls, and pass through
+ * portals via @ref warpVector, all handled here rather than on the ARM7.
+ *
+ * Keeping them out of the physics engine is deliberate: a pellet needs perfect
+ * reflection and a fixed speed, which is exactly what an impulse solver will
+ * not give you.
+ *
+ * A pellet that has bounced too long expires, which frees its launcher to emit
+ * another rather than leaving the chamber full of strays.
+ */
+
 #include "game/game_main.h"
 
 #define ENERGYBALLSIZE (128)

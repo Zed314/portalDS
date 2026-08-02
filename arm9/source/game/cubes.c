@@ -1,3 +1,17 @@
+/**
+ * @file cubes.c
+ * @brief Cube dispensers.
+ *
+ * Implements @ref cubes.h. A dispenser opens its hatch, spawns a rigid body
+ * through @ref createBox and holds a pointer to it; the cube itself is then
+ * entirely the ARM7's business.
+ *
+ * The back-pointer set in OBB_struct::spawner is what makes the chamber
+ * recoverable: when a cube is emancipated or dropped in sludge,
+ * @ref listenPI9 follows it here to @ref resetCubeDispenserCube and a fresh
+ * cube appears, instead of the puzzle becoming unsolvable.
+ */
+
 #include "game/game_main.h"
 
 static cubeDispenser_struct cubeDispenser[NUMCUBEDISPENSERS];

@@ -1,6 +1,34 @@
+/**
+ * @file OBB.c
+ * @brief The rigid body solver - integration, collision response and sleeping.
+ *
+ * Implements @ref OBB.h, and is where the ARM7 spends most of its time. The
+ * approach follows Chris Hecker's rigid body dynamics articles: bodies carry
+ * linear and angular momentum, contacts are resolved with instantaneous
+ * impulses, and the timestep is bisected whenever a body ends up too deeply
+ * penetrated so that collisions are applied close to the true time of impact.
+ *
+ * Reading order, roughly in the order the step executes:
+ *  - simulate() drives one frame for one body: gravity, then the
+ *    integrate/collide/bisect/impulse loop, then the sleep bookkeeping;
+ *  - integrate() advances position, orientation and momenta, re-orthonormalises
+ *    the orientation matrix and refreshes the world-space inverse inertia;
+ *  - checkOBBCollisions() gathers contacts against other bodies and the static
+ *    world;
+ *  - @ref collideOBBs and @ref clipSegmentOBB do the box-box narrow phase;
+ *  - applyOBBImpulsePlane() and applyOBBImpulseOBB() compute the response;
+ *  - @ref updateOBBPortals teleports a body that crossed a portal.
+ *
+ * @par Fixed point caveats
+ * The integrator carries the timestep as a 0.32 fixed point fraction of a
+ * frame (hence all the @c >>32 shifts) so that bisecting it a dozen times does
+ * not quantise to zero. This is also why @ref divv is used instead of a
+ * general divide - its second operand is known to be small.
+ */
+
 #include "stdafx.h"
 
-#define TIMEPREC (6)
+#define TIMEPREC (6) /**< Legacy timestep precision; superseded by the 0.32 fixed point time used in simulate(). */
 
 contactPoint_struct contactPoints[MAXCONTACTPOINTS];
 

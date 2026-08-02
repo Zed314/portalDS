@@ -1,3 +1,27 @@
+/**
+ * @file map.c
+ * @brief Room construction, queries, culling and display list generation.
+ *
+ * Implements @ref map.h, and is where most of the renderer actually lives.
+ *
+ *  - **construction** - rectangle lists, @ref initRoom, @ref addRoomRectangle,
+ *    and @ref transferRectangles, which registers every colliding face with the
+ *    ARM7.
+ *  - **the grid** - @ref generateRoomGrid bins rectangles into cells and caches
+ *    each cell's three nearest lights. @ref getCurrentCell and
+ *    @ref collideGridCell are the accessors.
+ *  - **ray casting** - @ref collideLineMap stops at the first hit;
+ *    @ref collideLineMapClosest finds the nearest, which is what the portal gun
+ *    needs.
+ *  - **drawing** - drawRect() submits a rectangle immediately, drawRectDL()
+ *    records one into a display list with optional culling against a viewpoint,
+ *    and @ref generateRoomDisplayList wraps that into a whole pre-baked,
+ *    pre-culled room. Each portal gets its own, which is what makes rendering
+ *    the room three times a frame affordable.
+ *  - **object lighting** - @ref setupObjectLighting builds the hardware
+ *    lighting parameters for a moving object from its cell's cached lights.
+ */
+
 #include "game/game_main.h"
 
 #define TEXTURE_SCALE (inttot16(1))

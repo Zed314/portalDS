@@ -1,3 +1,13 @@
+/**
+ * @file sfx.c
+ * @brief Sound effect loading and playback.
+ *
+ * Implements @ref sfx.h. Samples are read whole into RAM at level load and
+ * fired with libnds' @c soundPlaySample. There is no mixing policy or channel
+ * management beyond what the hardware does - with a handful of effects and
+ * sixteen channels, there has never been a need.
+ */
+
 #include  "game/game_main.h"
 
 static SFX_struct SFX[NUMSFX];

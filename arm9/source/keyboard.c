@@ -1,6 +1,19 @@
+/**
+ * @file keyboard.c
+ * @brief The on-screen keyboard.
+ *
+ * Implements @ref keyboard.h by laying out 39 @ref simplegui.h buttons in four
+ * rows - digits, then the three letter rows in QWERTY order, then space - and
+ * pointing all of them at one callback that appends to the caller's buffer.
+ *
+ * There is no shift, no punctuation and no cursor movement: this exists purely
+ * so the editor can name a level, and anything more would cost buttons the
+ * pool cannot spare.
+ */
+
 #include "common/general.h"
 
-#define KEYBOARD_N_BUTTONS 39
+#define KEYBOARD_N_BUTTONS 39 /**< Digits, three letter rows, space and backspace. */
 
 sguiButton_struct* keyboardButton[KEYBOARD_N_BUTTONS];
 
