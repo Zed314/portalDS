@@ -23,8 +23,9 @@
  *
  * @param dst  out: receives a newly allocated buffer holding the compressed stream.
  * @param srcD source data.
- * @param srcS size of @p srcD in bytes.
- * @return the size of the compressed stream in bytes, or 0 on failure.
+ * @param srcS length of @p srcD, counted in @c u16 elements - not bytes.
+ * @return the length of the compressed stream in @c u16 elements, or 0 on
+ *         failure. The stream itself is twice that many bytes.
  */
 uint32_t compressRLE(u16 **dst, u16 *srcD, uint32_t srcS);
 
@@ -33,8 +34,8 @@ uint32_t compressRLE(u16 **dst, u16 *srcD, uint32_t srcS);
  *
  * @param dst  destination buffer, which must already be large enough.
  * @param src  compressed stream.
- * @param dstS size of @p dst in bytes.
- * @return the number of bytes written.
+ * @param dstS length of @p dst, counted in @c u16 elements - not bytes.
+ * @return the number of @c u16 elements written, i.e. @p dstS.
  */
 uint32_t decompressRLE(u16 *dst, u16 *src, uint32_t dstS);
 

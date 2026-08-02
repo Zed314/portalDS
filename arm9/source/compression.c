@@ -117,7 +117,11 @@ uint32_t compressRLE(u16 **dst, u16 *srcD, uint32_t srcS)
 	}
 
 	*(u32*)dstL=cprs_create_header(srcS, CPRS_RLE_TAG);
-	memcpy(dstL+4, dstD, dstS*2-4);
+	// dstS counts u16s and includes the 4 element (8 byte) gap the payload
+	// starts after - which is what decompressRLE skips with src+4 - so the
+	// payload is dstS*2-8 bytes, not dstS*2-4. Copying 4 bytes more than
+	// that ran off the end of the allocation on every single call.
+	memcpy(dstL+4, dstD, dstS*2-8);
 	*dst=dstL;
 
 	free(dstD);
