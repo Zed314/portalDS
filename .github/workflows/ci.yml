@@ -38,6 +38,19 @@ jobs:
           path: portalDS.nds
           if-no-files-found: error
 
+  # Host unit tests. Deliberately not containerised: the whole point of these
+  # is that they need nothing but a C compiler, so if this job ever grows a
+  # toolchain step something has gone wrong. Runs under ASan/UBSan, which is
+  # how the RLE codec's heap overrun was found in the first place.
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: make test
+        run: make test
+
   # The self-contained build path from the README: docker build --output.
   # Compiles the same sources again, but it is the only thing keeping the
   # Dockerfile honest.

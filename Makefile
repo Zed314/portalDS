@@ -58,7 +58,7 @@ ROM		:= $(NAME).nds
 # Targets
 # -------
 
-.PHONY: all clean arm9 arm7 dldipatch sdimage docs
+.PHONY: all clean arm9 arm7 dldipatch sdimage docs test
 
 all: $(ROM)
 
@@ -66,7 +66,14 @@ clean:
 	@echo "  CLEAN"
 	$(V)$(MAKE) -f Makefile.arm9 clean --no-print-directory
 	$(V)$(MAKE) -f Makefile.arm7 clean --no-print-directory
+	$(V)$(MAKE) -C tests clean --no-print-directory
 	$(V)$(RM) $(ROM) build $(SDIMAGE) docs/api
+
+# Host unit tests. These do not use the BlocksDS toolchain at all - they build
+# the pure-logic sources with the host compiler and run them natively - so
+# this needs nothing more than gcc. See tests/README.md.
+test:
+	$(V)$(MAKE) -C tests --no-print-directory
 
 # API reference generated from the doc comments in the sources. Requires
 # doxygen, which is not part of the BlocksDS toolchain; install it separately.

@@ -23,6 +23,24 @@ Or, for incremental builds straight into the working tree (the ROM and build/ en
 
 Set `BLOCKSDS_IMAGE` to pin a specific toolchain version; it defaults to `skylyrac/blocksds:slim-latest`.
 
+Tests
+-----
+
+There is a small host-side unit test suite covering the parts of the codebase
+that are pure logic - the ARM7 fixed point maths, the 3x3 matrix code, and the
+RLE codec every saved level goes through:
+
+    make test
+
+It needs nothing but a C compiler: no BlocksDS, no Docker, no DS. The sources
+under test are compiled natively against a small stand-in for `<nds.h>` and
+run under AddressSanitizer and UndefinedBehaviorSanitizer. The framework is
+[Unity](https://github.com/ThrowTheSwitch/Unity), vendored under
+`tests/unity/`.
+
+See `tests/README.md` for what is covered, what is not (anything touching the
+hardware, and the hand written ARM assembly), and how to add a suite.
+
 Documentation
 -------------
 
@@ -51,11 +69,12 @@ and installs it there; set `DOXYGEN_IMAGE` to use your own image instead.
 Continuous integration
 ----------------------
 
-`.github/workflows/ci.yml` runs on every push and pull request. It builds the
-ROM both ways the README describes (`./docker-build.sh` and
-`docker build --output`), and generates the documentation, failing if doxygen
-reports any warning outside the third-party `iniparser`/`dictionary` files.
-The ROM and the HTML reference are attached to each run as artifacts.
+`.github/workflows/ci.yml` runs on every push and pull request. It runs the
+unit tests, builds the ROM both ways the README describes
+(`./docker-build.sh` and `docker build --output`), and generates the
+documentation, failing if doxygen reports any warning outside the third-party
+`iniparser`/`dictionary` files. The ROM and the HTML reference are attached to
+each run as artifacts.
 
 This is pretty much the game's final version. It's not quite complete feature-wise but I have no plans on continuing it.
 The code is provided "as-is" (whatever that entails), and can be freely used so long as it's not for commercial purposes and that proper credit is given to the original author.

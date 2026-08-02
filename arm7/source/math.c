@@ -102,8 +102,10 @@ ARM_CODE void rotateMatrixAxis(int32* tm, int32 x, vect3D a, bool r)
     memcpy(tm,m,9*sizeof(int32));
 }
 
+#if defined(__arm__)
+
 ARM_CODE __attribute__((noinline)) void asm_crossf32(const int32_t *a,const int32_t * b,int32_t *result)
-{ 
+{
     register const int32_t *r0 asm("r0")=a;
     asm (
         ".syntax unified \n\t"
@@ -134,6 +136,28 @@ ARM_CODE __attribute__((noinline)) void asm_crossf32(const int32_t *a,const int3
     );
     return;
 }
+
+#else
+
+/**
+ * @brief Plain C cross product, used when this file is not built for ARM.
+ *
+ * The DS build always takes the assembly path above; this exists so the host
+ * unit tests (see tests/) can compile and link this translation unit. It is
+ * the same computation - each component accumulated in 64 bits and shifted
+ * back down by 12 - just written for a compiler that has no @c smlal.
+ */
+void asm_crossf32(const int32_t *a, const int32_t *b, int32_t *result)
+{
+    int32_t x = ((int64_t)a[1]*b[2] - (int64_t)a[2]*b[1])>>12;
+    int32_t y = ((int64_t)a[2]*b[0] - (int64_t)a[0]*b[2])>>12;
+    int32_t z = ((int64_t)a[0]*b[1] - (int64_t)a[1]*b[0])>>12;
+    result[0]=x;
+    result[1]=y;
+    result[2]=z;
+}
+
+#endif
 
 
 void fixMatrix(int32* m) //3x3
