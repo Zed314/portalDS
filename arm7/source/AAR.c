@@ -36,6 +36,8 @@ static const u8 AARSegmentsPD[NUMAARSEGMENTS][2]={{0,0},{1,1},{3,0},{0,1}};
 
 u32 nodeSize=ORIGNODESIZE;
 
+void freeGrid(grid_struct* g); // defined below, used by initAARs
+
 /*void initAllocator(void)
 {
     allocatorCounter=0;
@@ -63,9 +65,9 @@ void initAARs(void)
     {
         aaRectangles[i].used=false;
     }
-    AARgrid.nodes=NULL;
-    AARgrid.width=AARgrid.height=0;
-    allocatorCounter=0;
+    // Must release the grid, not just forget it: this runs on every level
+    // load, so dropping the pointer leaked the whole broadphase each time.
+    freeGrid(&AARgrid);
 }
 
 void freeGrid(grid_struct* g)
@@ -78,8 +80,18 @@ void freeGrid(grid_struct* g)
 */
     if (!g)
         return;
+    // Each non-empty cell owns the index array allocateData handed it, so they
+    // have to go before the cell array itself. Freeing only g->nodes leaked one
+    // allocation per occupied cell every time the grid was rebuilt.
+    if(g->nodes)
+    {
+        const int count=(int)g->width*g->height;
+        for(int i=0;i<count;i++)
+            free(g->nodes[i].data);
+    }
     free(g->nodes);
     g->nodes=NULL;
+    g->width=g->height=0;
     //initAllocator();
     allocatorCounter=0;
 }
@@ -162,6 +174,21 @@ void generateGrid(grid_struct* g)
     fifoSendValue32(FIFO_USER_08,allocatorCounter);
 }
 
+// Converts an offset from the grid origin into a cell index, clamped to the
+// grid. The clamp is load bearing: a body can end up outside the room - shoved
+// through a wall, or falling out of the world - and then this offset is
+// negative or past the far edge. Stored straight into a u16 a negative index
+// wraps to ~65535, and the caller walks off the end of the node array.
+static u16 clampNodeIndex(int32 offset, u16 count)
+{
+    if(!count)
+        return 0;
+    if(offset<0)
+        return 0;
+    const int32 n=offset/NODESIZE;
+    return (n>=count)?(count-1):n;
+}
+
 void getOBBNodes(grid_struct* g, OBB_struct* o, u16* x, u16* X, u16* z, u16* Z)
 {
     if(!o)return;
@@ -170,8 +197,8 @@ void getOBBNodes(grid_struct* g, OBB_struct* o, u16* x, u16* X, u16* z, u16* Z)
     const vect3D m=vectDifference(o->AABBo,g->m);
     const vect3D M=addVect(m,o->AABBs);
 
-    *x=m.x/NODESIZE;*z=m.z/NODESIZE;
-    *X=M.x/NODESIZE;*Z=M.z/NODESIZE;
+    *x=clampNodeIndex(m.x,g->width);*z=clampNodeIndex(m.z,g->height);
+    *X=clampNodeIndex(M.x,g->width);*Z=clampNodeIndex(M.z,g->height);
 }
 
 AAR_struct* createAAR(u16 id, vect3D position, vect3D size, vect3D normal)
