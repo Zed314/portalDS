@@ -334,8 +334,9 @@ void readEntityEditor(FILE* f)
 
 	u8 type; vect3D v;
 
-	fread(&type,sizeof(u8),1,f);
+	if(fread(&type,sizeof(u8),1,f)!=1)return;
 	entity_struct* e=createEntity(vect(0,0,0), type, true);
+	if(!e)return; //pool full; readEntitiesEditor caps the count so this is belt and braces
 	readVect(&e->position, f);
 	fread(&e->direction, sizeof(u8), 1, f);
 
@@ -450,9 +451,12 @@ void readEntityEditor(FILE* f)
 
 void readEntitiesEditor(FILE* f)
 {
-	int i; u16 cnt;
+	int i; u16 cnt=0;
 	removeEntities();
-	fread(&cnt,sizeof(u16),1,f);
+	if(fread(&cnt,sizeof(u16),1,f)!=1)return;
+	// The entity pool is NUMENTITIES deep and createEntity hands back NULL once
+	// it is full; cap here so that never happens, as game/room.c does.
+	if(cnt>NUMENTITIES)cnt=NUMENTITIES;
 	for(i=0;i<cnt;i++)
 	{
 		readEntityEditor(f);
@@ -469,12 +473,19 @@ bool loadMapEditor(editorRoom_struct* er, const char* str)
 	mapHeader_struct h;
 	readHeader(&h, f);
 
+	// dataSize comes straight out of the file. The worst case the compressor
+	// can produce is one control word per element plus the four word header,
+	// so anything past that is a lie; and however big it claims to be, only
+	// what the file actually holds is read, and only that much is decompressed.
+	const u32 maxData=ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ*2+8;
+	if(h.dataSize>maxData){fclose(f);return false;}
+
 	fseek(f, h.dataPosition, SEEK_SET);
 		u16* compressed=malloc(sizeof(u16)*h.dataSize);
-		if(!compressed){return false;} //TEMP : clean up first !
-		fread(compressed, sizeof(u16), h.dataSize, f);
-		// decompress(compressed, er->blockArray, RLE); // decompressRLE(er->blockArray, compressed, ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ);
-		decompressRLE(er->blockArray, compressed, ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ);
+		if(!compressed){fclose(f);return false;}
+		const size_t got=fread(compressed, sizeof(u16), h.dataSize, f);
+		// decompress(compressed, er->blockArray, RLE);
+		decompressRLE(er->blockArray, compressed, ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ, got);
 		free(compressed);
 
 	fseek(f, h.entityPosition, SEEK_SET);

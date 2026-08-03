@@ -43,7 +43,7 @@ static uint32_t assert_round_trips(const u16 *src, uint32_t count)
     u16 *out = calloc(count ? count : 1, sizeof(u16));
     TEST_ASSERT_NOT_NULL(out);
 
-    uint32_t written = decompressRLE(out, packed, count);
+    uint32_t written = decompressRLE(out, packed, count, packedCount);
     TEST_ASSERT_EQUAL_UINT32(count, written);
     TEST_ASSERT_EQUAL_HEX16_ARRAY(src, out, count);
 
@@ -73,8 +73,8 @@ static void test_decompress_rejects_null_arguments(void)
     u16 dst[4];
     u16 src[8] = {0};
 
-    TEST_ASSERT_EQUAL_UINT32(0, decompressRLE(NULL, src, 4));
-    TEST_ASSERT_EQUAL_UINT32(0, decompressRLE(dst, NULL, 4));
+    TEST_ASSERT_EQUAL_UINT32(0, decompressRLE(NULL, src, 4, 8));
+    TEST_ASSERT_EQUAL_UINT32(0, decompressRLE(dst, NULL, 4, 8));
 }
 
 /* --- shapes of input ---------------------------------------------------- */
@@ -227,12 +227,82 @@ static void test_pseudorandom_inputs(void)
     }
 }
 
+/* --- a source that runs out ---------------------------------------------- */
+
+/*
+ * The stream records how much comes out of it but never how much goes in, so
+ * decompressRLE used to keep reading until the output was full - however far
+ * past the end of the input that took. A level file is downloadable, so a
+ * truncated or hand edited one is the expected case rather than the unlucky
+ * one. ASan is what fails these if the source bound goes away.
+ */
+
+static void test_a_truncated_stream_stops_at_the_end_of_the_source(void)
+{
+    u16 src[64];
+    for (unsigned i = 0; i < 64; i++)
+        src[i] = (u16)(i * 7);
+
+    u16 *packed = NULL;
+    const uint32_t packedCount = compressRLE(&packed, src, 64);
+    TEST_ASSERT_NOT_NULL(packed);
+
+    /* Hand over only half of what the compressor produced. */
+    u16 *half = malloc(sizeof(u16) * (packedCount / 2));
+    TEST_ASSERT_NOT_NULL(half);
+    memcpy(half, packed, sizeof(u16) * (packedCount / 2));
+
+    u16 out[64] = {0};
+    const uint32_t written = decompressRLE(out, half, 64, packedCount / 2);
+
+    TEST_ASSERT_LESS_OR_EQUAL_UINT32_MESSAGE(64, written, "reported more output than the buffer holds");
+
+    free(half);
+    free(packed);
+}
+
+static void test_a_source_shorter_than_the_header_yields_nothing(void)
+{
+    u16 src[4] = {0};
+    u16 out[16] = {0};
+
+    /* The header alone is four u16s; anything less is not a stream. */
+    TEST_ASSERT_EQUAL_UINT32(0, decompressRLE(out, src, 16, 0));
+    TEST_ASSERT_EQUAL_UINT32(0, decompressRLE(out, src, 16, 3));
+}
+
+static void test_a_header_with_no_payload_yields_nothing(void)
+{
+    u16 src[4] = {0};
+    u16 out[16] = {0};
+
+    TEST_ASSERT_EQUAL_UINT32(0, decompressRLE(out, src, 16, 4));
+}
+
+static void test_a_stream_claiming_more_than_it_carries(void)
+{
+    /* One literal control word promising sixteen elements, with two behind it. */
+    u16 src[7] = {0, 0, 0, 0, /*header*/ 15, 0xAAAA, 0xBBBB};
+    u16 out[16];
+    memset(out, 0, sizeof(out));
+
+    const uint32_t written = decompressRLE(out, src, 16, 7);
+
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(2, written, "should have stopped where the source did");
+    TEST_ASSERT_EQUAL_HEX16(0xAAAA, out[0]);
+    TEST_ASSERT_EQUAL_HEX16(0xBBBB, out[1]);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
 
     RUN_TEST(test_compress_rejects_null_arguments);
     RUN_TEST(test_decompress_rejects_null_arguments);
+    RUN_TEST(test_a_truncated_stream_stops_at_the_end_of_the_source);
+    RUN_TEST(test_a_source_shorter_than_the_header_yields_nothing);
+    RUN_TEST(test_a_header_with_no_payload_yields_nothing);
+    RUN_TEST(test_a_stream_claiming_more_than_it_carries);
 
     RUN_TEST(test_empty_input);
     RUN_TEST(test_single_element);

@@ -129,20 +129,30 @@ uint32_t compressRLE(u16 **dst, u16 *srcD, uint32_t srcS)
 	return dstS;
 }
 
-uint32_t decompressRLE(u16 *dst, u16 *src, uint32_t dstS)
+uint32_t decompressRLE(u16 *dst, u16 *src, uint32_t dstS, uint32_t srcS)
 {
 	if(!dst || !src)return 0;
 
+	// The stream says how much comes out, never how much goes in, so this used
+	// to walk the source until the output was full - reading as far past the
+	// end of a truncated or hand edited file as that took. srcS bounds it.
+	// Anything the source runs out before producing is left as the caller had
+	// it, and the count of what was actually written comes back.
+	if(srcS<4)return 0;
+
 	uint32_t ii, size=0;
 	u16 *srcL=src+4, *dstD=dst;
+	const u16 *srcEnd=src+srcS;
 
 	for(ii=0; ii<dstS; ii += size)
 	{
 		// Get header byte
+		if(srcL>=srcEnd)return ii;
 		u32 header= *srcL++;
 
 		if(header&0x80)		// compressed stint
 		{
+			if(srcL>=srcEnd)return ii;
 			size= min( (header&~0x80)+3, dstS-ii);
 			// NOGBA("RLE1- : %d %d",size,*srcL);
 			// memset(&dstD[ii], *srcL, size);
@@ -152,6 +162,8 @@ uint32_t decompressRLE(u16 *dst, u16 *src, uint32_t dstS)
 		else				// noncompressed stint
 		{
 			size= min(header+1, dstS-ii);
+			if((uint32_t)(srcEnd-srcL)<size)size=(uint32_t)(srcEnd-srcL);
+			if(!size)return ii;
 			memcpy(&dstD[ii], srcL, size*2);
 			// memset(&dstD[ii], 0, size*2);
 			// NOGBA("RLE2- : %d",size);

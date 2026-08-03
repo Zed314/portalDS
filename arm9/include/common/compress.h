@@ -35,8 +35,12 @@ uint32_t compressRLE(u16 **dst, u16 *srcD, uint32_t srcS);
  * @param dst  destination buffer, which must already be large enough.
  * @param src  compressed stream.
  * @param dstS length of @p dst, counted in @c u16 elements - not bytes.
- * @return the number of @c u16 elements written, i.e. @p dstS.
+ * @param srcS length of @p src, counted in @c u16 elements - not bytes. The
+ *             stream carries the decompressed size but never its own, so
+ *             without this a truncated or hand edited one is read past the end.
+ * @return the number of @c u16 elements written: @p dstS for a complete
+ *         stream, or fewer if @p src ran out first.
  */
-uint32_t decompressRLE(u16 *dst, u16 *src, uint32_t dstS);
+uint32_t decompressRLE(u16 *dst, u16 *src, uint32_t dstS, uint32_t srcS);
 
 #endif
