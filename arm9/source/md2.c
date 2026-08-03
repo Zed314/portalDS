@@ -173,7 +173,7 @@ int loadMd2Model(const char *filename, char *texname, md2Model_struct *mdl)
     mdl->texture=NULL;
 
     mdl->texture=createTexture(texname,"textures");
-    nocashMessage("OpeningFile\n");
+    NOGBA("OpeningFile\n");
     fp = fopen (filename, "rb");
     if (!fp)
     {

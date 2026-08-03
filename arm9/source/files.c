@@ -31,9 +31,9 @@ u32 getFileSize(FILE *file) {
 bool initFilesystem(int argc, char **argv)
 {
 	bool saveAvailable;
-    nocashMessage("not entered ifdef\n");
+    NOGBA("not entered ifdef\n");
 	//u8 fsMode;
-    nocashMessage("entered ifdef\n");
+    NOGBA("entered ifdef\n");
 	basePath = fatGetDefaultCwd();
 	if(nitroFSInit(NULL))
 	{
@@ -63,7 +63,7 @@ bool initFilesystem(int argc, char **argv)
 		return true;
 	}
 
-    nocashMessage("left ifdef\n");
+    NOGBA("left ifdef\n");
 	saveAvailable=false;
 	if(!fatInitDefault())
         return false;

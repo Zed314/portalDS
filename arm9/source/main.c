@@ -96,13 +96,13 @@ int main(int argc, char **argv)
     }
     glInit();
 #if McuASAN_CONFIG_IS_ENABLED
-    nocashMessage("Init ASAN\n");
+    NOGBA("Init ASAN\n");
     McuASAN_Init();
 #endif
     //initAudio();
 
     //doSPALSH();
-    nocashMessage("scan keys\n");
+    NOGBA("scan keys\n");
     //TEMP DEBUG
     scanKeys();
     scanKeys();
@@ -111,18 +111,18 @@ int main(int argc, char **argv)
 
     if(keysHeld() & KEY_SELECT)
     {
-        nocashMessage("editorstate\n");
+        NOGBA("editorstate\n");
         changeState(&editorState);
     }
     else
     {
-        nocashMessage("gamestate\n");
+        NOGBA("gamestate\n");
         changeState(&gameState);
     }
-    nocashMessage("menustate\n");
+    NOGBA("menustate\n");
     changeState(&menuState);
 
-    nocashMessage("applystate\n");
+    NOGBA("applystate\n");
     applyState();
 
     while(1)

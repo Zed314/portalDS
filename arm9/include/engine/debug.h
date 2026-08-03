@@ -46,8 +46,39 @@ do {                                \
 #define PROF2_START() /**< @brief Disabled second profiling channel. */
 #define PROF2_END(_time) _time=92431 /**< @brief Disabled second profiling channel; yields a recognisable dummy value. */
 
-/** @brief printf-style logging to the no$gba debug window. Does nothing on hardware. */
-#define NOGBA(_fmt, _args...) do { char nogba_buffer[128]; snprintf(nogba_buffer, sizeof(nogba_buffer), _fmt, ##_args); nocashMessage(nogba_buffer); } while(0)
+/**
+ * @name Debug logging
+ *
+ * @ref NOGBA writes to no$gba's debug console, and is compiled out unless
+ * @c NOGBA_LOGGING is defined.
+ *
+ * It is off by default for two reasons. The write lands on 0x04FFFA14, which
+ * real hardware ignores but which emulators report: DeSmuME prints
+ * "write32 to undefined register 04FFFA14h" for every single call, and a
+ * message on a per-frame path buries its own log in the noise. And each call
+ * formats into a 128 byte stack buffer before writing, which is not free on a
+ * 67MHz ARM9 when it happens every frame.
+ *
+ * Switch it back on for a debugging session with
+ *
+ *     ./docker-build.sh clean
+ *     ./docker-build.sh 'DEFINES=-DPICOLIBC_LONG_LONG_PRINTF_SCANF -DNOGBA_LOGGING'
+ *
+ * (DEFINES is the Makefile variable the flag has to join; overriding it drops
+ * the picolibc one, so pass both.)
+ *
+ * or by defining it above this header. The disabled form still compiles the
+ * format string and its arguments - inside @c sizeof, which is not evaluated -
+ * so they stay checked against each other and still count as used, and no code
+ * is generated for them.
+ * @{
+ */
+#ifdef NOGBA_LOGGING
+	#define NOGBA(_fmt, _args...) do { char nogba_buffer[128]; snprintf(nogba_buffer, sizeof(nogba_buffer), _fmt, ##_args); nocashMessage(nogba_buffer); } while(0)
+#else
+	#define NOGBA(_fmt, _args...) do { (void)sizeof(printf(_fmt, ##_args)); } while(0)
+#endif
+/** @} */
 
 void DS_Debug(char* string, ...); /**< @brief printf-style message to the debug console. */
 void DS_DebugPause(void);         /**< @brief Blocks until a key is pressed; a poor man's breakpoint. */
