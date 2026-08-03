@@ -165,6 +165,8 @@ void initPlayer(player_struct* p)
 
 void drawBottomButton(bool color)
 {
+	if(!bottomButton || !bottomButton->texels)return;
+
 	u16* d=bgGetGfxPtr(subBG);
 	u8* s=bottomButton->texels;
 	if(!color)s+=32*128;

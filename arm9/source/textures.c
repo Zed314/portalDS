@@ -498,10 +498,16 @@ void loadTexturePCX(char* filename, char* directory, mtlImg_struct* mtl)
 
 	u8* texels=NULL;
 
+	struct gl_texture_t *pcxt=(struct gl_texture_t *)ReadPCXFile(filename,directory);
+	if(!pcxt)
+	{
+		NOGBA("could not load texture %s",filename);
+		return;
+	}
+
 	mtl->used=true;
 	mtl->name=alloc(strlen(filename)+1,NULL);
-	strcpy(mtl->name,filename);
-	struct gl_texture_t *pcxt=(struct gl_texture_t *)ReadPCXFile(filename,directory);
+	if(mtl->name)strcpy(mtl->name,filename);
 
 	mtl->rwidth=mtl->width=pcxt->width;
 	mtl->rheight=mtl->height=pcxt->height;
@@ -569,7 +575,17 @@ void loadTexturePCX(char* filename, char* directory, mtlImg_struct* mtl)
 u32* loadPalettePCX(char* filename, char* directory)
 {
 	struct gl_texture_t *pcxt=(struct gl_texture_t *)ReadPCXFile(filename,directory);
+	if(!pcxt)
+	{
+		NOGBA("could not load palette %s",filename);
+		return NULL;
+	}
+
+	// Zeroed, not left as whatever was on the stack: addPaletteToBank is what
+	// fills in pal, and the unsupported-depth path below used to return the
+	// uninitialised value of it. That path also used to leak the image.
 	mtlImg_struct mtl;
+	memset(&mtl, 0, sizeof(mtl));
 
 	NOGBA("format : %d",pcxt->format);
 	switch(pcxt->format)
@@ -581,7 +597,7 @@ u32* loadPalettePCX(char* filename, char* directory)
 			addPaletteToBank(&mtl, pcxt->palette, 256*2);
 			break;
 		default:
-			return NULL;
+			break;
 	}
 
 	freePCX(pcxt);

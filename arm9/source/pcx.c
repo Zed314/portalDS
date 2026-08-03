@@ -344,7 +344,13 @@ struct gl_texture_t * ReadPCXFile (const char *filename, char* directory)
 /* Read header file */
 // fread (&header, sizeof (struct pcx_header_t), 1, fp);
 
-    nocashMessage("performing sketchy memcopy\n");
+	if (filesize < (int)sizeof (header))
+	{
+		NOGBA("error: \"%s\" is too small to hold a PCX header\n", filename);
+		free (buffer);
+		return NULL;
+	}
+
 	memcpy(&header,buffer,sizeof (header));
 	fileptr+=sizeof (struct pcx_header_t);
 
@@ -352,12 +358,18 @@ struct gl_texture_t * ReadPCXFile (const char *filename, char* directory)
 	{
 		NOGBA("error: bad version number! (%i)\n",
 			header.manufacturer);
+		free (buffer);
 		return NULL;
 	}
 
 /* Initialize texture parameters */
 
 	texinfo = (struct gl_texture_t *)malloc (sizeof (struct gl_texture_t));
+	if (!texinfo)
+	{
+		free (buffer);
+		return NULL;
+	}
 	texinfo->width = header.xmax - header.xmin + 1;
 	texinfo->height = header.ymax - header.ymin + 1;
 // texinfo->format = GL_RGB;
@@ -381,7 +393,8 @@ struct gl_texture_t * ReadPCXFile (const char *filename, char* directory)
 		NOGBA("LOADING 4BIT");
 		texinfo->texels = (u8 *) malloc ((sizeof (u8) * texinfo->width * texinfo->height) / 2);
 		texinfo->palette = (u16 *) malloc (sizeof (u16) * 16);
-		ReadPCX4bits (buffer, &header, texinfo);
+		if (texinfo->texels && texinfo->palette)
+			ReadPCX4bits (buffer, &header, texinfo);
 		break;
 
 		case 8:
@@ -389,7 +402,8 @@ struct gl_texture_t * ReadPCXFile (const char *filename, char* directory)
 		texinfo->texels = (u8 *) malloc (sizeof (u8) * texinfo->width * texinfo->height);
 		texinfo->palette = (u16 *) malloc (sizeof (u16) * 256);
 		NOGBA("TEXELS %p",texinfo->texels);
-		ReadPCX8bits (buffer, &header, texinfo);
+		if (texinfo->texels && texinfo->palette)
+			ReadPCX8bits (buffer, &header, texinfo);
 		break;
 
 		/*case 24:
@@ -399,12 +413,23 @@ struct gl_texture_t * ReadPCXFile (const char *filename, char* directory)
 		default:
 		/* Unsupported */
 		NOGBA("error: unknown %i bitcount pcx files\n", bitcount);
-		// free (texinfo->texels);
-		free (texinfo);
-		texinfo = NULL;
 		break;
 	}
 	free(buffer);
+
+	/*
+	 * A single failure signal. This used to hand back a texture with a NULL
+	 * texels pointer for an unsupported depth, a failed allocation or a bad
+	 * palette marker - so a caller checking the return value for NULL, which
+	 * is the only thing there is to check, still got something it could not
+	 * use. Callers now only have to test the one pointer.
+	 */
+	if (!texinfo->texels || !texinfo->palette)
+	{
+		freePCX (texinfo);
+		return NULL;
+	}
+
 	return texinfo;
 }
 

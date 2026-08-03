@@ -45,18 +45,30 @@ void doSPALSH()
     int bg = bgInit(3, BgType_Bmp8, BgSize_B8_256x256, 0,0);
     struct gl_texture_t* spalsh=(struct gl_texture_t *)ReadPCXFile("spalsh.pcx","");
 
-    dmaCopy(spalsh->texels, bgGetGfxPtr(bg), 256*192);
-    dmaCopy(spalsh->palette, BG_PALETTE, 256*2);
-
-    freePCX(spalsh);
+    // The copies below are a fixed screenful, so the image has to be one -
+    // a missing or wrongly sized splash used to be read past the end of.
+    if(spalsh)
+    {
+        if(spalsh->width==256 && spalsh->height==192)
+        {
+            dmaCopy(spalsh->texels, bgGetGfxPtr(bg), 256*192);
+            dmaCopy(spalsh->palette, BG_PALETTE, 256*2);
+        }
+        freePCX(spalsh);
+    }
 
     int bg_sub = bgInitSub(3, BgType_Bmp8, BgSize_B8_256x256, 0,0);
     struct gl_texture_t* spalsh_sub=(struct gl_texture_t *)ReadPCXFile("spalsh_bottom.pcx","");
 
-    dmaCopy(spalsh_sub->texels, bgGetGfxPtr(bg_sub), 256*192);
-    dmaCopy(spalsh_sub->palette, BG_PALETTE_SUB, 256*2);
-
-    freePCX(spalsh_sub);
+    if(spalsh_sub)
+    {
+        if(spalsh_sub->width==256 && spalsh_sub->height==192)
+        {
+            dmaCopy(spalsh_sub->texels, bgGetGfxPtr(bg_sub), 256*192);
+            dmaCopy(spalsh_sub->palette, BG_PALETTE_SUB, 256*2);
+        }
+        freePCX(spalsh_sub);
+    }
 
     fadeIn();
     int i;

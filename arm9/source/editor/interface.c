@@ -56,7 +56,7 @@ void initInterface(void)
 	interfaceBackground=(struct gl_texture_t *)ReadPCXFile("interface.pcx","editor");
 	convertPCX16Bit(interfaceBackground);
 	bgSub=bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-	if(interfaceBackground->texels16)dmaCopy(interfaceBackground->texels16,bgGetGfxPtr(bgSub),256*192*2);
+	if(interfaceBackground && interfaceBackground->texels16)dmaCopy(interfaceBackground->texels16,bgGetGfxPtr(bgSub),256*192*2);
 
 	initInterfaceButtons();
 }
@@ -79,7 +79,7 @@ void eraseInterfaceButton(interfaceButton_struct* ib)
 	int j;
 	for(j=0;j<ib->imageData->height;j++)
 	{
-		dmaCopy(&interfaceBackground->texels16[ib->x+(ib->y+j)*256],&bgGetGfxPtr(bgSub)[ib->x+(ib->y+j)*256],ib->imageData->width*2);
+		if(interfaceBackground->texels16)dmaCopy(&interfaceBackground->texels16[ib->x+(ib->y+j)*256],&bgGetGfxPtr(bgSub)[ib->x+(ib->y+j)*256],ib->imageData->width*2);
 	}
 }
 

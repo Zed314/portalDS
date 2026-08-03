@@ -59,7 +59,7 @@ void drawPixelArea(u16* b1, u16* b2, vect3D o, vect3D s, vect3D v, u16 w)
 void doPause(u16* buffer)
 {
 	lcdMainOnBottom();
-	drawPixelArea(pauseImage->texels16, buffer, vect(0,0,0), vect(256,192,0), vect(0,0,0), 256);
+	if(pauseImage)drawPixelArea(pauseImage->texels16, buffer, vect(0,0,0), vect(256,192,0), vect(0,0,0), 256);
 	touchPosition tp;
 	pausePI();
 	u8 done=0;
@@ -70,10 +70,10 @@ void doPause(u16* buffer)
 		{
 			if(tp.px>pauseButtonPositions[i].x && tp.py>pauseButtonPositions[i].y && tp.px<pauseButtonPositions[i].x+pauseButtonSize.x && tp.py<pauseButtonPositions[i].y+pauseButtonSize.y)
 			{
-				drawPixelArea(pauseButtonsImage->texels16, buffer, pauseButtonPositions[i], pauseButtonSize, addVect(pauseButtonPositions[i],vect(0,-30*i,0)), 128);
+				if(pauseButtonsImage)drawPixelArea(pauseButtonsImage->texels16, buffer, pauseButtonPositions[i], pauseButtonSize, addVect(pauseButtonPositions[i],vect(0,-30*i,0)), 128);
 				if(!(keysHeld() & KEY_TOUCH))done=i+1;
 			}else{
-				drawPixelArea(pauseImage->texels16, buffer, pauseButtonPositions[i], pauseButtonSize, vect(0,0,0), 256);
+				if(pauseImage)drawPixelArea(pauseImage->texels16, buffer, pauseButtonPositions[i], pauseButtonSize, vect(0,0,0), 256);
 			}
 		}
 
