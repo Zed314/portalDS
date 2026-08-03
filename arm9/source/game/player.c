@@ -104,6 +104,9 @@ void setFog(u8 intensity)
 	glFogOffset(0x6500);
 }
 
+//defined further down, next to renderGun which is the rest of its story
+static void clearMuzzleParticles(void);
+
 void initPlayer(player_struct* p)
 {
 	if(!p)p=&player;
@@ -117,6 +120,7 @@ void initPlayer(player_struct* p)
 	p->walkCnt=0;
 	p->life=127;
 	p->refusedCNT=0;
+	clearMuzzleParticles();
 	p->tempAngle=vect(0,0,0);
 	loadMd2Model("models/portalgun.md2","portalgun.pcx",&gun);
 	loadMd2Model("models/ratman.md2","ratman.pcx",&playerModel);
@@ -290,6 +294,116 @@ static s32 refusedShakeAngle(s16 cnt)
 	return (sinLerp((s16)phase)*amplitude)>>12;
 }
 
+/* --- muzzle sparks -------------------------------------------------------- */
+
+/*
+ * A handful of sparks at the barrel, in whichever colour is about to be fired.
+ *
+ * Deliberately not the system in game/particles.c. That one is world space and
+ * was cut for performance, and the reason it was cut still holds: the room is
+ * drawn up to three times a frame for the portal views, so anything living in
+ * it is paid for three times over. These live in view space beside the gun,
+ * there are never more than MUZZLEPARTICLES of them, and they cost one quad
+ * each wherever the gun itself is already being drawn.
+ *
+ * They sit in view space rather than in the gun's own rotated frame, so the
+ * three offsets below read as plain right, up and forward and can be nudged
+ * without working out where the model's barrel ended up. If the sparks appear
+ * in the wrong place on screen, MUZZLEX/Y/Z are the dials.
+ */
+#define MUZZLEPARTICLES (12)  /**< Pool size; two shots in quick succession overlap. */
+#define MUZZLEBURST (6)       /**< How many a single shot emits. */
+#define MUZZLELIFE (14)       /**< Frames each one lasts. */
+
+#define MUZZLEX (0)           /**< Barrel offset from the gun's own position, rightwards. */
+#define MUZZLEY (10)          /**< ...upwards. */
+#define MUZZLEZ (-52)         /**< ...forwards, into the screen. */
+
+#define MUZZLESPREAD (10)     /**< Scatter of the initial position and velocity. */
+#define MUZZLEDRIFT (5)       /**< Forward drift per frame. */
+#define MUZZLESIZE (8)        /**< Half extent of one spark's quad, in the same units as the offsets above - the gun's own placement constants (height, depth, X) are tens of these, so a spark is a small fraction of the gun. */
+
+typedef struct
+{
+	vect3D position, speed;
+	u16 color;
+	s16 life;
+}muzzleParticle_struct;
+
+static muzzleParticle_struct muzzleParticles[MUZZLEPARTICLES];
+
+static void clearMuzzleParticles(void)
+{
+	int i;for(i=0;i<MUZZLEPARTICLES;i++)muzzleParticles[i].life=0;
+}
+
+/** @brief Emits a burst at the barrel. Silently does less if the pool is busy. */
+static void spawnMuzzleParticles(u16 color)
+{
+	int i, spawned=0;
+	for(i=0;i<MUZZLEPARTICLES && spawned<MUZZLEBURST;i++)
+	{
+		muzzleParticle_struct* m=&muzzleParticles[i];
+		if(m->life>0)continue;
+
+		m->position=vect(MUZZLEX+(rand()%MUZZLESPREAD)-MUZZLESPREAD/2,
+		                 MUZZLEY+(rand()%MUZZLESPREAD)-MUZZLESPREAD/2,
+		                 MUZZLEZ);
+		m->speed=vect((rand()%MUZZLESPREAD)-MUZZLESPREAD/2,
+		              (rand()%MUZZLESPREAD)-MUZZLESPREAD/2,
+		              -MUZZLEDRIFT);
+		m->color=color;
+		m->life=MUZZLELIFE;
+		spawned++;
+	}
+}
+
+static void updateMuzzleParticles(void)
+{
+	int i;
+	for(i=0;i<MUZZLEPARTICLES;i++)
+	{
+		muzzleParticle_struct* m=&muzzleParticles[i];
+		if(m->life<=0)continue;
+
+		m->position=addVect(m->position,m->speed);
+		m->life--;
+	}
+}
+
+/**
+ * @brief Draws the live sparks.
+ *
+ * Call with the matrix at the gun's position and the view's axes, before any
+ * of the gun's own rotations - that is what makes the offsets above readable.
+ */
+static void drawMuzzleParticles(void)
+{
+	int i;
+	unbindMtl(); //untextured, and the gun's own texture is bound around this
+
+	for(i=0;i<MUZZLEPARTICLES;i++)
+	{
+		const muzzleParticle_struct* m=&muzzleParticles[i];
+		if(m->life<=0)continue;
+
+		//POLY_ALPHA(0) is wireframe on this hardware, so never fade to nothing
+		const u32 alpha=(31*m->life)/MUZZLELIFE;
+		glPolyFmt(POLY_ALPHA(alpha?alpha:1) | POLY_CULL_NONE | POLY_ID(50));
+		GFX_COLOR=m->color;
+
+		glPushMatrix();
+			glTranslate3f32(m->position.x,m->position.y,m->position.z);
+			glBegin(GL_QUADS);
+				glVertex3v16(-MUZZLESIZE, MUZZLESIZE,0);
+				glVertex3v16( MUZZLESIZE, MUZZLESIZE,0);
+				glVertex3v16( MUZZLESIZE,-MUZZLESIZE,0);
+				glVertex3v16(-MUZZLESIZE,-MUZZLESIZE,0);
+			glEnd();
+		glPopMatrix(1);
+	}
+}
+
 void renderGun(player_struct* p)
 {
 	if(!p)p=&player;
@@ -299,6 +413,11 @@ void renderGun(player_struct* p)
 
 		glTranslate3f32((sinLerp(p->walkCnt>>1)>>11),(sinLerp(p->walkCnt)>>11),0);
 		glTranslate3f32(0,height,depth);
+
+		//Before the rotations, so the sparks stay in view space; see the note
+		//on drawMuzzleParticles.
+		drawMuzzleParticles();
+
 		glRotateYi(-(1<<13));
 		glRotateYi(-p->tempAngle.y);
 		glRotateZi(p->tempAngle.x/2);
@@ -322,6 +441,10 @@ bool shootPlayerGun(player_struct* p, bool R, u8 mode)
 	camera_struct* c=getPlayerCamera();
 
 	p->currentPortal=R;
+
+	//Sparks in the colour being fired. Only for a shot that is actually trying
+	//to place a portal - controlUse comes through here too, without bit 4.
+	if(mode&4)spawnMuzzleParticles(R?portal1.color:portal2.color);
 
 	int32 k=inttof32(300);
 	vect3D u=getUnitVector(NULL);
@@ -542,6 +665,7 @@ void updatePlayer(player_struct* p)
 	//renderGun is called more than once per frame, so the shake has to be
 	//wound down here rather than where it is drawn.
 	if(p->refusedCNT>0)p->refusedCNT--;
+	updateMuzzleParticles();
 
 	updateAnimation(&p->playerModelInstance);
 
