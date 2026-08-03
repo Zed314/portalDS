@@ -32,6 +32,20 @@
 #define SQPLAYERRADIUS ((PLAYERRADIUS*PLAYERRADIUS)>>12) /**< Radius squared, in f32. */
 
 #define PLAYERGROUNDSPEED (inttof32(3)>>8) /**< Acceleration per frame while on the ground. */
+
+/**
+ * @name The refused shot wobble
+ *
+ * Firing plays the same animation whether or not a portal appears, so a shot
+ * that goes nowhere - a wall that takes no portals, a spot the portal will not
+ * fit, or one already covered by the other portal - used to look exactly like
+ * one that worked. These shake the gun briefly instead. See @ref renderGun.
+ * @{
+ */
+#define GUNREFUSEDFRAMES (18)  /**< How long the shake lasts, in frames. */
+#define GUNREFUSEDANGLE (700)  /**< Widest swing, as a binary angle: roughly eight degrees. */
+#define GUNREFUSEDSWINGS (2)   /**< Complete left-right swings over those frames. */
+/** @} */
 #define PLAYERAIRSPEED (inttof32(1)>>9)    /**< Acceleration per frame while airborne - deliberately much lower. */
 
 /**
@@ -51,6 +65,7 @@ typedef struct
 	bool inPortal;               /**< True while the player straddles a portal. */
 	bool oldInPortal;            /**< ::inPortal last frame; a change is what triggers the teleport. */
 	s16 life;                    /**< Health; reaching zero restarts the chamber. */
+	s16 refusedCNT;              /**< Counts the refused-shot shake down to zero; see @ref GUNREFUSEDFRAMES. */
 }player_struct;
 
 extern s16 gravityGunTarget;   /**< Id of the box currently held by the gravity gun, or -1. */

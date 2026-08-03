@@ -116,6 +116,7 @@ void initPlayer(player_struct* p)
 	touchOld=touchCurrent;
 	p->walkCnt=0;
 	p->life=127;
+	p->refusedCNT=0;
 	p->tempAngle=vect(0,0,0);
 	loadMd2Model("models/portalgun.md2","portalgun.pcx",&gun);
 	loadMd2Model("models/ratman.md2","ratman.pcx",&playerModel);
@@ -251,6 +252,38 @@ s16 depth=-92;
 s16 height=-63;
 s16 X=-46;
 
+/**
+ * @brief Marks the gun as having been fired without placing anything.
+ *
+ * Restarting rather than accumulating, so holding the trigger against a wall
+ * that takes no portals keeps shaking instead of winding itself up.
+ */
+static void refuseShot(player_struct* p)
+{
+	if(!p)return;
+	p->refusedCNT=GUNREFUSEDFRAMES;
+}
+
+/**
+ * @brief Yaw offset of the refused-shot shake, as a binary angle.
+ *
+ * A sine swung @ref GUNREFUSEDSWINGS times over @ref GUNREFUSEDFRAMES frames,
+ * with the amplitude falling linearly to nothing, so the gun ends where it
+ * started however the count runs out. Zero once the count reaches zero, which
+ * is what makes this safe to call every frame.
+ */
+static s32 refusedShakeAngle(s16 cnt)
+{
+	if(cnt<=0)return 0;
+	if(cnt>GUNREFUSEDFRAMES)cnt=GUNREFUSEDFRAMES;
+
+	//A full turn is 32768, so this wraps of its own accord once per swing.
+	const s32 phase=((GUNREFUSEDFRAMES-cnt)*GUNREFUSEDSWINGS*32768)/GUNREFUSEDFRAMES;
+	const s32 amplitude=(GUNREFUSEDANGLE*cnt)/GUNREFUSEDFRAMES;
+
+	return (sinLerp((s16)phase)*amplitude)>>12;
+}
+
 void renderGun(player_struct* p)
 {
 	if(!p)p=&player;
@@ -263,6 +296,9 @@ void renderGun(player_struct* p)
 		glRotateYi(-(1<<13));
 		glRotateYi(-p->tempAngle.y);
 		glRotateZi(p->tempAngle.x/2);
+		//The firing animation plays either way, so this is the only thing that
+		//tells a shot which placed a portal from one which did not.
+		glRotateYi(refusedShakeAngle(p->refusedCNT));
 		glMaterialf(GL_AMBIENT, RGB15(31,31,31));
 		glTranslate3f32(0,0,X);
 		glScalef32(inttof32(1)>>4,inttof32(1)>>4,inttof32(1)>>4);
@@ -337,11 +373,17 @@ void shootPlayerGun(player_struct* p, bool R, u8 mode)
                 NOGBA("Portal secondary branch!\n");
                 NOGBA("portal intersect is %d\n", portalToPortalIntersection(por,other_por));
 				movePortal(por, oldp, oldn, oldp0, false);
+				//the surface takes portals, but this one will not fit on it -
+				//it hangs off an edge, or the other portal is already there
+				refuseShot(p);
 			}
 		}
-        else 
+        else if(mode&4)
         {
+            //no portalable surface under the shot: bare wall, out of range, or
+            //an emancipation grid in the way
             NOGBA("TRIED TO PLACE PORTAL BUT FAILED\n");
+            refuseShot(p);
         }
 	}
 }
@@ -485,6 +527,10 @@ void updatePlayer(player_struct* p)
 
 	p->tempAngle.x/=2;
 	p->tempAngle.y/=2;
+
+	//renderGun is called more than once per frame, so the shake has to be
+	//wound down here rather than where it is drawn.
+	if(p->refusedCNT>0)p->refusedCNT--;
 
 	updateAnimation(&p->playerModelInstance);
 
