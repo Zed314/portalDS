@@ -707,6 +707,40 @@ static void test_a_slow_walk_into_a_wall_is_blocked(void)
 		"a slow walk should not get through a wall");
 }
 
+static void test_every_step_of_a_sweep_is_checked(void)
+{
+	/*
+	 * Above a speed of 200 the move is broken into 128 unit steps with a
+	 * collision check after each. The check used to be folded in with
+	 * ret=ret||checkObjectCollision(...), and || short circuits - so once
+	 * anything had been touched, which on the first step is the floor
+	 * underfoot, every remaining step of that sweep skipped collision
+	 * entirely and the object slid the rest of the way through whatever was
+	 * in front of it.
+	 *
+	 * Starting from where the resolver actually leaves a player standing
+	 * against a wall, and pushing into it at every speed up to terminal
+	 * velocity.
+	 */
+	const int32 speeds[] = { 250, 400, 550, 700, 800 };
+	const int32 wallPlane = 2*TILESIZE*2;
+
+	for(unsigned i=0;i<sizeof(speeds)/sizeof(speeds[0]);i++)
+	{
+		levelFixtureReset();
+		addWall();
+		addFloor();
+
+		physicsObject_struct o = playerAt(roomSpace(wallPlane - PLAYERRADIUS, FLOOR_REST_HEIGHT, 1536));
+		o.speed = vect(speeds[i], 0, 0);
+
+		for(int frame=0;frame<40;frame++)collideObjectRoom(&o, &room);
+
+		TEST_ASSERT_LESS_THAN_INT32_MESSAGE(wallPlane, o.position.x + TILESIZE,
+			"a swept move went through the wall");
+	}
+}
+
 static void test_a_fast_walk_into_a_wall_passes_through_it(void)
 {
 	/*
@@ -912,6 +946,7 @@ int main(void)
 	RUN_TEST(test_speed_reversed_by_a_collision_is_zeroed);
 	RUN_TEST(test_a_crawling_horizontal_speed_snaps_to_zero);
 	RUN_TEST(test_a_slow_walk_into_a_wall_is_blocked);
+	RUN_TEST(test_every_step_of_a_sweep_is_checked);
 	RUN_TEST(test_a_fast_walk_into_a_wall_passes_through_it);
 	RUN_TEST(test_movement_tolerates_null);
 

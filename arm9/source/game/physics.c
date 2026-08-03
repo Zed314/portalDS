@@ -277,7 +277,12 @@ void collideObjectRoom(physicsObject_struct* o, room_struct* r)
 		while(length>128)
 		{
 			o->position=addVect(o->position,v);
-			ret=ret||checkObjectCollision(o,r);
+			// Not ret=ret||checkObjectCollision(...): || short circuits, so once
+			// anything had been touched - the floor underfoot on the very first
+			// step, usually - every remaining step of the sweep skipped
+			// collision entirely and the object slid the rest of the way
+			// through whatever was in front of it.
+			if(checkObjectCollision(o,r))ret=true;
 			length-=128;
 		}
 
