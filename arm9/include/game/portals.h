@@ -172,6 +172,9 @@ bool isPortalOnWall(room_struct* r, portal_struct* p, bool fix);
  *
  * \warning Does not work if two portals are on the ceiling.
 */
+/** @brief How far apart two portals may sit along their shared normal and still count as being in one plane. */
+#define PORTALPLANEEPSILON (32)
+
 bool portalToPortalIntersection(const  portal_struct* p, const portal_struct* p2);
 
 /**

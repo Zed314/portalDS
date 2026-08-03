@@ -38,7 +38,6 @@ static createdEntity_struct* record(createdKind_type kind)
 
 /* Reader-visible game globals. */
 room_struct gameRoom;
-portal_struct portal1, portal2;
 platform_struct platform[NUMPLATFORMS];
 wallDoor_struct entryWallDoor;
 wallDoor_struct exitWallDoor;
@@ -89,6 +88,7 @@ void levelFixtureReset(void)
 	thePlayer.object = &thePlayerObject;
 
 	levelFixtureCellClear();
+	//portal1/portal2 are owned by game/portals.c, which is linked in for real
 	memset(&portal1, 0, sizeof(portal1));
 	memset(&portal2, 0, sizeof(portal2));
 	memset(platform, 0, sizeof(platform));
@@ -387,6 +387,58 @@ void readHeader(mapHeader_struct* h, FILE* f)
 	fseek(f, 0, SEEK_SET);
 	if(fread(h, MAPHEADER_SIZE, 1, f)!=1)memset(h, 0, sizeof(*h));
 }
+
+/* --- what game/portals.c leans on --------------------------------------- */
+
+/*
+ * Portal placement is geometry; everything below it is rendering, the camera,
+ * and the bridge to the ARM7. None of that decides whether a portal may go
+ * somewhere, so it is all stubbed and the placement maths is the real thing.
+ */
+u32 debugVal;
+s16 gravityGunTarget;
+u16 mainScreen[256*192];
+
+static camera_struct thePlayerCamera;
+static polygon_struct* thePolygon;
+
+polygon_struct* createEllipse(vect3D po, vect3D v1, vect3D v2, int n)
+{ (void)po;(void)v1;(void)v2;(void)n; return thePolygon; }
+
+polygon_struct* createEllipseOutline(vect3D po, vect3D v1_1, vect3D v2_1, vect3D v1_2, vect3D v2_2, vect3D norm, int n)
+{ (void)po;(void)v1_1;(void)v2_1;(void)v1_2;(void)v2_2;(void)norm;(void)n; return thePolygon; }
+
+void drawPolygon(polygon_struct* p) { (void)p; }
+void drawPolygonStrip(polygon_struct* p, u16 c1, u16 c2) { (void)p;(void)c1;(void)c2; }
+void projectPolygon(camera_struct* c, polygon_struct** p, vect3D o, vect3D u1, vect3D u2, int32 d1, int32 d2)
+{ (void)c;(void)p;(void)o;(void)u1;(void)u2;(void)d1;(void)d2; }
+void initPolygonPool(void) {}
+void freePolygon(polygon_struct** p) { if(p)*p=NULL; }
+
+u32* generateRoomDisplayList(room_struct* r, vect3D pos, vect3D normal, bool cull)
+{ (void)r;(void)pos;(void)normal;(void)cull; return NULL; }
+
+camera_struct* getPlayerCamera(void) { return &thePlayerCamera; }
+vect3D getViewPosition(vect3D p) { return p; }
+vect3D reverseViewPosition(vect3D p) { return p; }
+void initCamera(camera_struct* c) { if(c)memset(c, 0, sizeof(*c)); }
+void updateFrustum(camera_struct* c) { (void)c; }
+void updateViewMatrix(camera_struct* c) { (void)c; }
+
+void updatePortalPI(u8 id, vect3D pos, vect3D normal, vect3D plane0)
+{ (void)id;(void)pos;(void)normal;(void)plane0; }
+void resetPortalsPI(void) {}
+
+void glMatrixMode(GL_MATRIX_MODE_ENUM m) { (void)m; }
+void glLoadIdentity(void) {}
+void glPushMatrix(void) {}
+void glPopMatrix(s32 n) { (void)n; }
+void glScalef32(int32 x, int32 y, int32 z) { (void)x;(void)y;(void)z; }
+void glTranslate3f32(int32 x, int32 y, int32 z) { (void)x;(void)y;(void)z; }
+void glOrthof32(int32 l, int32 r, int32 b, int32 t, int32 n, int32 f)
+{ (void)l;(void)r;(void)b;(void)t;(void)n;(void)f; }
+void glCallList(const u32* l) { (void)l; }
+void dmaCopy(const void* src, void* dst, u32 size) { (void)src;(void)dst;(void)size; }
 
 /*
  * The libnds maths the ARM9 headers call out to. Real implementations, not

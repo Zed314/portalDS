@@ -448,54 +448,68 @@ bool portalRectangleIntersection(room_struct* r, portal_struct* p, rectangle_str
 	return true;
 }
 
-/*
- * Overlap checking between the two portals is switched off, and has been since
- * e3fc39c ("provisional fix for level 5 portals not appearing") - the test
- * below rejected placements that the game needs to allow. Everything after the
- * return is therefore unreachable, and is kept because it is the only record
- * of what the check was meant to be; note the TODO in it and the warning in
- * portals.h, which together say it was never finished.
+/**
+ * @brief Decides whether a candidate portal is clear of the other one.
  *
- * The consequence is that the two portals may overlap. Re-enabling this means
- * finishing the ceiling case and then re-testing placement across the shipped
- * chambers, which is a level design question rather than a code one.
+ * Named for the geometry it tests, but the sense is the caller's: true means
+ * the placement is allowed. See the contract in portals.h.
+ *
+ * Both portals sit on axis aligned walls, so two of them can only overlap if
+ * they lie in the same plane - parallel normals, and no separation along that
+ * normal. Given that, it reduces to a rectangle overlap in the plane, which is
+ * two separating axis checks against @p p's own tangents; @p p2's are the same
+ * pair, possibly swapped, so its extents are projected onto them rather than
+ * tested separately.
+ *
+ * @par Why this is not the check that used to be here
+ * The previous version was switched off in e3fc39c ("provisional fix for level
+ * 5 portals not appearing") and it deserved to be. It compared against 782*2-100
+ * and 374*2 where the portal's actual half extents are @ref PORTALSIZEY (682)
+ * and @ref PORTALSIZEX (341), so it rejected placements up to a tenth of a
+ * portal too far apart; and its axis branches keyed off @c normal.x being equal,
+ * which is also true of two portals that both face along z - and then compared
+ * the wrong pair of axes for them. It handled no ceiling case at all.
+ *
+ * @par Conservative by a corner
+ * The portals are drawn as ellipses and tested here as their bounding
+ * rectangles, so two placed corner to corner are refused although the ellipses
+ * would not quite have met. That is the safe direction to be wrong in for a
+ * rule whose job is to stop them sharing a spot, and it is at most a corner's
+ * worth.
+ *
+ * @param p  the portal being placed.
+ * @param p2 the other portal.
+ * @return true if @p p may be placed, false if it would overlap @p p2.
  */
 bool portalToPortalIntersection(const portal_struct* p, const portal_struct* p2)
 {
-	if(!p || !p2)return false;
+	if(!p || !p2)return true;
 
-    return true;
-    NOGBA("nx:%d,ny:%d,nz:%d\n", p->normal.x,p->normal.y,p->normal.z);
-    NOGBA("x:%d,y:%d,z:%d\n", p->position.x,p->position.y,p->position.z);
-    NOGBA("n2x:%d,n2y:%d,n2z:%d\n", p2->normal.x,p2->normal.y,p2->normal.z);
-    NOGBA("x:%d,y:%d,z:%d\n", p2->position.x,p2->position.y,p2->position.z);
-	vect3D vect_portals = vectProduct(p->normal,p2->normal);
-	if (equals(vect_portals.x,0) && equals(vect_portals.y,0) && equals(vect_portals.z,0))
-	{
-		//works as we are on a grid, no inclination
-		// y is "up"
-		if (p->normal.x==p2->normal.x)
-		{
-            NOGBA("X BRANCH\n");
-			return abs(p->position.y-p2->position.y)> 782*2-100
+	//nothing to conflict with until the other portal has been shot
+	if(!p2->used)return true;
 
-			||  abs(p->position.z-p2->position.z)>374*2;
-		}
-		if (p->normal.z==p2->normal.z)
-		{
-            NOGBA("Y BRANCH\n");
-			return abs(p->position.y-p2->position.y)> 782*2-100 ||  abs(p->position.x-p2->position.x)>374*2;
-		}
-		if (p->position.y==p2->position.y)
-		{
-			// TODO : complete this case
-			return true;
-		}
-	}
+	//different walls cannot overlap. Parallel normals give a zero cross
+	//product, and anti-parallel ones do too, which is the point: two portals
+	//facing opposite ways in one plane still share the spot.
+	const vect3D c=vectProduct(p->normal,p2->normal);
+	if(!equals(c.x,0) || !equals(c.y,0) || !equals(c.z,0))return true;
 
-	return true;
+	const vect3D d=vectDifference(p2->position,p->position);
+
+	//parallel but on different planes: one wall in front of another
+	if(abs(dotProduct(d,p->normal))>PORTALPLANEEPSILON)return true;
+
+	//p2's half extents measured along p's tangents. The dot products are
+	//4096 or 0 for grid aligned portals, so this is a swap rather than a
+	//rotation, but it costs nothing to write it generally.
+	const int32 e0=abs(mulf32(PORTALSIZEX,dotProduct(p2->plane[0],p->plane[0])))
+	              +abs(mulf32(PORTALSIZEY,dotProduct(p2->plane[1],p->plane[0])));
+	const int32 e1=abs(mulf32(PORTALSIZEX,dotProduct(p2->plane[0],p->plane[1])))
+	              +abs(mulf32(PORTALSIZEY,dotProduct(p2->plane[1],p->plane[1])));
+
+	return abs(dotProduct(d,p->plane[0]))>=PORTALSIZEX+e0
+	    || abs(dotProduct(d,p->plane[1]))>=PORTALSIZEY+e1;
 }
-
 
 bool isPortalOnWall(room_struct* r, portal_struct* p, bool fix)
 {

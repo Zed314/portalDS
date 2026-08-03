@@ -48,6 +48,7 @@ What is covered
 | `test_rectangle` | `arm9/source/editor/rectangle.c` - closest point, ray casts, the maximal rectangle finder and the lightmap atlas packer |
 | `test_physics` | `arm9/source/game/physics.c` - the player's swept sphere collision, movement and gravity |
 | `test_pcx` | `arm9/source/pcx.c` - the image decoder, against malformed files |
+| `test_portals` | `arm9/source/game/portals.c` - where a portal may and may not be placed |
 
 These are the parts of the codebase that are pure logic: data in, data out,
 no hardware. That is also where the bugs are worst, because a wrong answer in
@@ -120,6 +121,15 @@ decoder is handed actual files written to /tmp, byte for byte as a PCX is laid
 out on disk. Only the cartridge and NitroFS calls around it are stubbed. Every
 image in the game goes through this decoder, and it walks a file buffer with an
 index, which is the shape of code that reads past the end when the header lies.
+
+`test_portals` exists because of a specific piece of history. The rule that
+stops the two portals overlapping was switched off in e3fc39c, "provisional fix
+for level 5 portals not appearing" - the check refused placements the game
+needed, and was simply short circuited rather than corrected. Turning a
+placement rule back on without pinning down exactly which positions it refuses
+is how that happens a second time, so the suite checks each axis at the last
+position that is refused and the first that is allowed. Over-rejection fails it
+just as loudly as under-rejection does, which is the half that matters here.
 
 `test_physics` covers the other collision system - the player's, which is not
 an ARM7 rigid body but a much simpler move-then-push-out sphere. It is worth

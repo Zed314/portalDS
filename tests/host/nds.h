@@ -180,6 +180,24 @@ extern u32 GFX_PAL_FORMAT, GFX_TEX_FORMAT, GFX_COLOR;
 
 void glPolyFmt(u32 params);
 
+/* Matrix stack selectors, named after the geometry engine's ports. */
+typedef enum { GL_PROJECTION=0, GL_POSITION=1, GL_MODELVIEW=2, GL_TEXTURE=3 } GL_MATRIX_MODE_ENUM;
+
+/*
+ * The geometry engine calls the portal renderer makes. Placement is decided
+ * before any of these run, so the test build supplies no-ops and gets the
+ * placement maths for real.
+ */
+void glMatrixMode(GL_MATRIX_MODE_ENUM mode);
+void glLoadIdentity(void);
+void glPushMatrix(void);
+void glPopMatrix(s32 count);
+void glScalef32(int32 x, int32 y, int32 z);
+void glTranslate3f32(int32 x, int32 y, int32 z);
+void glOrthof32(int32 left, int32 right, int32 bottom, int32 top, int32 near, int32 far);
+void glCallList(const u32* list);
+void dmaCopy(const void* src, void* dst, u32 size);
+
 /*
  * Filesystem bring-up, from libfat and libfilesystem. files.c calls these at
  * boot; bufferizeFile() below them is plain stdio and works here unchanged,
