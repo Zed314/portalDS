@@ -60,11 +60,16 @@ encoding and the replies coming back. See `tests/rom/README.md`.
 Documentation
 -------------
 
-The sources carry Doxygen comments: a file-level overview at the top of every
-file explaining what it does and how it fits together, plus documentation for
-each public type and function in the headers. If you are new to the codebase,
-the umbrella headers are the place to start — they lay out each half of the
-program in dependency order:
+`ARCHITECTURE.md` is the place to start if you are new to the codebase. It
+covers the things no single file can: how the game is split across the DS's two
+processors, how one 3D engine ends up drawing two screens and three views of the
+room per frame, how portals are actually composited, and where the level data
+goes on its way from the editor to the ARM7.
+
+Below that, the sources carry Doxygen comments: a file-level overview at the top
+of every file explaining what it does and how it fits together, plus
+documentation for each public type and function in the headers. The umbrella
+headers lay out each half of the program in dependency order:
 
 - `common/include/PIC.h` — how the two CPUs split the work and talk to each other
 - `arm7/include/stdafx.h` — the ARM7 physics engine

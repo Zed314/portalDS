@@ -24,7 +24,7 @@ OUTPUT_DIRECTORY       = docs/api
 # only holds generated artwork/soundbank blobs, and reference/ is excluded
 # because it holds third party material that is not part of the game.
 
-INPUT                  = arm7 arm9 common README.md
+INPUT                  = arm7 arm9 common README.md ARCHITECTURE.md
 FILE_PATTERNS          = *.c *.h *.md
 RECURSIVE              = YES
 EXCLUDE                = build reference
