@@ -54,7 +54,12 @@ typedef struct
  */
 static inline void fadeIn(void)
 {
-	int i;for(i=0;i<=16;i++){setBrightness(3,-16+i);swiWaitForVBlank();}
+	//Wait first, then write. The other way round put every step of the fade in
+	//the middle of a frame, so the screen was drawn part at the old brightness
+	//and part at the new one - a seam travelling down it for the length of the
+	//fade. Emulators say so out loud; DeSmuME prints "Changing master
+	//brightness outside of vblank" once per step.
+	int i;for(i=0;i<=16;i++){swiWaitForVBlank();setBrightness(3,-16+i);}
 }
 
 /**
@@ -63,7 +68,8 @@ static inline void fadeIn(void)
  */
 static inline void fadeOut(void)
 {
-	int i;for(i=0;i<=16;i++){setBrightness(3,-i);swiWaitForVBlank();}
+	//See fadeIn(): vblank first, then the brightness write.
+	int i;for(i=0;i<=16;i++){swiWaitForVBlank();setBrightness(3,-i);}
 }
 
 /**

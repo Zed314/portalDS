@@ -34,8 +34,9 @@ extern state_struct * current_state;
 
 void doSPALSH()
 {
-    setBrightness(3,-16);
+    //vblank first, as in fadeIn(): this is the same mid-frame write.
     swiWaitForVBlank();
+    setBrightness(3,-16);
     videoSetMode(MODE_5_2D);
     videoSetModeSub(MODE_5_2D);
 
