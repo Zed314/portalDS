@@ -81,9 +81,9 @@ typedef enum
 	PI_STOP=3,   	    /**< Stop simulation. ARG : 0 */
 	PI_RESET=4,  	    /**< Drop all dynamic boxes and restart. ARG : 0 */
 	PI_RESETALL=18,	    /**< Full re-init: boxes, rectangles and platforms. ARG : 0 */
-	PI_ADDBOX=5,  	    /**< Spawn a rigid body. ARG : 5 (id;[sizex|sizey][sizez|mass][posx][posy][posz]) */
+	PI_ADDBOX=5,  	    /**< Spawn a rigid body. ARG : 7 (id;[sizex|sizey][sizez|mass][posx][posy][posz][cosine][sine]) */
 	PI_APPLYFORCE=6,    /**< Apply an impulse at a point. ARG : 5 (id;[posx|posy][posz][vx][vy][vz]) */
-	PI_ADDAAR=7,  	    /**< Add a static collision rectangle. ARG : 5 (id;[sizex][sizey][sizez][normal][posx][posy][posz]) */
+	PI_ADDAAR=7,  	    /**< Add a static collision rectangle. ARG : 7 (id;[sizex][sizey][sizez][normal][posx][posy][posz]) */
 	PI_MAKEGRID=8,      /**< Rebuild the broadphase grid over the rectangles. ARG : 0 */
 	PI_SETVELOCITY=9,   /**< Overwrite a body's linear velocity. ARG : 3 (id;[vx][vy][vz]) */
 	PI_UPDATEPLAYER=10, /**< Tell the ARM7 where the player is. ARG : 3 ([vx][vy][vz]) */

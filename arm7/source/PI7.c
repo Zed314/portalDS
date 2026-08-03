@@ -102,6 +102,14 @@ ARM_CODE void listenPI7(void)
                 while(!fifoCheckValue32(FIFO_USER_08));
 
                 s32 cosine=fifoGetValue32(FIFO_USER_08);
+
+                // The sine needs its own wait, like every other argument.
+                // fifoGetValue32 does not block - libnds returns 0 when the
+                // queue is empty - so reading it unguarded silently yields a
+                // zero sine whenever the word has not landed yet, and the box
+                // is created facing the wrong way.
+                while(!fifoCheckValue32(FIFO_USER_08));
+
                 s32 sine=fifoGetValue32(FIFO_USER_08);
                 //NOGBA("add box:id%d, %ld, %ld, %ld\n",id, pos.x,pos.y,pos.z);
                 //add box:id0, 19968, 208896, 1536
