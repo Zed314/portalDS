@@ -109,9 +109,12 @@ void initPortal(portal_struct* p, vect3D pos, vect3D normal, bool color)
 	initCamera(&p->camera);
 
 	p->oldZ=-1;
-	p->normal=normal;
 	p->used=false;
-	p->normal=vect(0,0,inttof32(1));
+	// The assignment from the parameter used to be immediately overwritten by
+	// a hardcoded +z, so the argument every caller passes was discarded. It
+	// only shows before the portal is first shot - movePortal sets the real
+	// orientation - but a function that ignores its own argument is a trap.
+	p->normal=normal;
 	p->plane[0]=vect(0,inttof32(1),0);
 	computePortalPlane(p);
 
@@ -416,6 +419,25 @@ bool portalRectangleIntersection(room_struct* r, portal_struct* p, rectangle_str
 			return true;
 		}
 	}
+	/*
+	 * No edge of the rectangle crosses the outline, so the remaining way it
+	 * can block the portal is by sitting entirely inside it - a perpendicular
+	 * surface poking through where the portal would go. That is the "case
+	 * where both points in portal" of 2406a6e, and it has never actually run:
+	 * the bounds below are missing their minus signs, so each condition reads
+	 * "not exactly on the boundary" and returns false for every real input.
+	 * The tail is therefore equivalent to an unconditional return false.
+	 *
+	 * Left as it is on purpose. Correcting it to
+	 *
+	 *     if(p1.x<-PORTALSIZEX||p1.x>PORTALSIZEX||...)
+	 *
+	 * enables a placement rule that has been dormant since the day it was
+	 * written, and the one other time a dormant placement rule was switched on
+	 * here it had to be switched off again - see portalToPortalIntersection
+	 * below. Whether portals should refuse these spots is a level design
+	 * question, and answering it needs the shipped chambers, not a unit test.
+	 */
 	p1=vectDifference(p1,p->position);
 	p1=vect(dotProduct(p1,p->plane[0]),dotProduct(p1,p->plane[1]),0);
 	if(p1.x<PORTALSIZEX||p1.x>PORTALSIZEX||p1.y<PORTALSIZEY||p1.y>PORTALSIZEY)return false;
@@ -426,6 +448,18 @@ bool portalRectangleIntersection(room_struct* r, portal_struct* p, rectangle_str
 	return true;
 }
 
+/*
+ * Overlap checking between the two portals is switched off, and has been since
+ * e3fc39c ("provisional fix for level 5 portals not appearing") - the test
+ * below rejected placements that the game needs to allow. Everything after the
+ * return is therefore unreachable, and is kept because it is the only record
+ * of what the check was meant to be; note the TODO in it and the warning in
+ * portals.h, which together say it was never finished.
+ *
+ * The consequence is that the two portals may overlap. Re-enabling this means
+ * finishing the ceiling case and then re-testing placement across the shipped
+ * chambers, which is a level design question rather than a code one.
+ */
 bool portalToPortalIntersection(const portal_struct* p, const portal_struct* p2)
 {
 	if(!p || !p2)return false;
