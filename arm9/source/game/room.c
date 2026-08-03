@@ -219,7 +219,7 @@ void readSludgeRectangles(FILE* f)
 	}
 }
 
-void addEntityTarget(u8 k, u8 n, void* target, activatorTarget_type type)
+void addEntityTarget(int k, int n, void* target, activatorTarget_type type)
 {
 	if(!target)return;
 	int i;
@@ -233,9 +233,11 @@ void addEntityTarget(u8 k, u8 n, void* target, activatorTarget_type type)
 	}
 }
 
-void readEntity(u8 i, FILE* f)
+// i indexes the entity*Array tables below, so it must be within NUMENTITIES.
+// readEntities() is what enforces that; do not call this directly.
+void readEntity(int i, FILE* f)
 {
-	if(!f)return;
+	if(!f || i<0 || i>=NUMENTITIES)return;
 	u8 type=0, dir=0; vect3D v;
 	fread(&type, sizeof(u8), 1, f);
 	readVect(&v, f);
@@ -402,7 +404,20 @@ void readEntities(FILE* f)
 {
 	if(!f)return;
 
-	u16 cnt; fread(&cnt,sizeof(u16),1,f);
+	// The count is whatever the file says, but the entity*Array tables are
+	// NUMENTITIES long and the index used to be truncated to a u8 on the way
+	// into readEntity() - so a map claiming more than 64 entities wrote past
+	// them, and one claiming more than 256 wrapped as well. Nothing reads
+	// sequentially after this section (newReadMap fseeks to sludgePosition),
+	// so stopping at the pool size just drops the excess entities.
+	u16 cnt=0;
+	if(fread(&cnt,sizeof(u16),1,f)!=1)return;
+	if(cnt>NUMENTITIES)
+	{
+		NOGBA("entity count %d capped to %d",cnt,NUMENTITIES);
+		cnt=NUMENTITIES;
+	}
+
 	int i; for(i=0;i<cnt;i++)readEntity(i,f);
 	for(i=0;i<cnt;i++)addEntityTarget(i,cnt,entityEntityArray[i],entityTargetTypeArray[i]);
 }

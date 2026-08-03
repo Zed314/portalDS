@@ -68,8 +68,13 @@ void setLevelInfo(char* title, char* author)
 {
 	levelTitle[0]='\0';
 	levelAuthor[0]='\0';
-	if(title)strcpy(levelTitle, title); //enforce length limit
-	if(author)sprintf(levelAuthor, "by %s", author); //enforce length limit
+	// Both strings come straight out of the level's .ini, so their length is
+	// whatever the map author felt like - the ini parser hands back values of
+	// up to ASCIILINESZ bytes. strcpy/sprintf into these 32 byte buffers wrote
+	// most of a kilobyte past them. Truncating is fine: the banner these feed
+	// (drawCenteredString, below) has no room for more than this anyway.
+	if(title)snprintf(levelTitle, sizeof(levelTitle), "%s", title);
+	if(author)snprintf(levelAuthor, sizeof(levelAuthor), "by %s", author);
 }
 
 void endGame(void)
