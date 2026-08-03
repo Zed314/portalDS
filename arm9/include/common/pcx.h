@@ -39,13 +39,21 @@ struct gl_texture_t
 	u16 *palette;   /**< Palette, in the DS's 15 bit BGR format. */
 };
 
-#pragma pack(1)
+#pragma pack(push, 1)
 /**
  * @brief The on-disk PCX header.
  *
  * Packed to one-byte alignment so it can be read straight off the file. The
  * loader only supports the 8 bit RLE variant, which is what @c manufacturer
  * 0x0A / @c bitsPerPixel 8 identifies.
+ *
+ * @note push/pop rather than a bare @c pack(1) ... @c pack(4). The old pair
+ *       did not restore the previous packing, it *set* packing to 4 for
+ *       everything included after this header - which is most of the ARM9,
+ *       since general.h pulls this in near the top. That was invisible on the
+ *       DS, where 4 is both the default and the widest alignment anything
+ *       needs, and wrong everywhere else: the host test build ended up with
+ *       eight byte pointers on four byte boundaries.
  */
 /* PCX header */
 struct pcx_header_t
@@ -69,7 +77,7 @@ struct pcx_header_t
 
 	u8 padding[54]; /**< Reserved, brings the header to 128 bytes. */
 };
-#pragma pack(4)
+#pragma pack(pop)
 
 /**
  * @brief Loads and decodes a PCX file.

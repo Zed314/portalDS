@@ -46,12 +46,23 @@ void setMapFilePath(char* path);
 /** @brief Sets the level to advance to when this one is completed. */
 void setNextMapFilePath(char* path);
 
+#define LEVELINFOCHARS 32 /**< Size of the @ref levelTitle and @ref levelAuthor buffers, including the terminator. */
+
 /**
  * @brief Sets the title and author shown briefly when a level starts.
+ *
+ * Both arguments come straight out of the level's @c .ini and so may be
+ * arbitrarily long; both are truncated to fit @ref LEVELINFOCHARS. Either may
+ * be NULL, which leaves that line empty.
+ *
  * @param title  level title.
  * @param author author name; displayed prefixed with "by".
+ * @see levelinfo.c
  */
 void setLevelInfo(char* title, char* author);
+
+extern char levelTitle[LEVELINFOCHARS];  /**< Current level's title, always NUL terminated. */
+extern char levelAuthor[LEVELINFOCHARS]; /**< Current level's author, prefixed with "by", always NUL terminated. */
 
 /**
  * @brief Ends the current level.
