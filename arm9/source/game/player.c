@@ -337,7 +337,12 @@ static void clearMuzzleParticles(void)
 	int i;for(i=0;i<MUZZLEPARTICLES;i++)muzzleParticles[i].life=0;
 }
 
-/** @brief Emits a burst at the barrel. Silently does less if the pool is busy. */
+/**
+ * @brief Emits a burst at the barrel. Silently does less if the pool is busy.
+ *
+ * Called only where a portal has actually been placed, so the sparks mean a
+ * portal appeared rather than merely that the trigger was pulled.
+ */
 static void spawnMuzzleParticles(u16 color)
 {
 	int i, spawned=0;
@@ -442,10 +447,6 @@ bool shootPlayerGun(player_struct* p, bool R, u8 mode)
 
 	p->currentPortal=R;
 
-	//Sparks in the colour being fired. Only for a shot that is actually trying
-	//to place a portal - controlUse comes through here too, without bit 4.
-	if(mode&4)spawnMuzzleParticles(R?portal1.color:portal2.color);
-
 	int32 k=inttof32(300);
 	vect3D u=getUnitVector(NULL);
 	vect3D l=vectDifference(p->object->position,convertVect(vect(p->currentRoom->position.x,0,p->currentRoom->position.y)));
@@ -499,6 +500,13 @@ bool shootPlayerGun(player_struct* p, bool R, u8 mode)
 				ejectPortalOBBs(por);
 
 				movePortal(por, pos, vectMultInt(r->normal,-1), plane0, true);
+
+				//Sparks only once a portal is really there, and in that
+				//portal's own colour. A refused shot gets the shake and the
+				//error sound instead - three cues saying "no" is one too many,
+				//and the gun visibly discharging nothing is the clearest of
+				//them.
+				spawnMuzzleParticles(por->color);
 			}else{
                 NOGBA("Portal secondary branch!\n");
                 NOGBA("portal intersect is %d\n", portalToPortalIntersection(por,other_por));
