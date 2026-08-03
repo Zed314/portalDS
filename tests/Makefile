@@ -85,7 +85,7 @@ D_ARM7    := -DARM7 -D__NDS__
 # reach the ARM7 build: arm7/include/math.h defines inttof32 and friends too.
 D_ARM9    := -DTEST_ARM9_FULL
 
-SUITES    := fixed_math matrix compression obb collision solver platform levelfile room rectangle physics
+SUITES    := fixed_math matrix compression obb collision solver platform levelfile room rectangle physics pcx
 BINS      := $(addprefix $(BUILD)/test_,$(SUITES))
 
 .PHONY: all build test clean
@@ -170,6 +170,9 @@ $(BUILD)/test_rectangle.o: $(TESTDIR)suites/test_rectangle.c $(THISFILE) | $(BUI
 $(BUILD)/test_physics.o: $(TESTDIR)suites/test_physics.c $(THISFILE) | $(BUILD)
 	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
 
+$(BUILD)/test_pcx.o: $(TESTDIR)suites/test_pcx.c $(THISFILE) | $(BUILD)
+	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
+
 MATHOBJS  := $(BUILD)/unity.o $(BUILD)/arm_primitives.o $(BUILD)/arm7_math.o
 
 # The whole ARM7 physics engine, minus the FIFO layer that talks to the other
@@ -206,7 +209,7 @@ $(BUILD)/test_platform: $(BUILD)/test_platform.o $(PHYSOBJS)
 LEVELOBJS := $(BUILD)/unity.o $(BUILD)/level_fixture.o \
              $(BUILD)/arm9_room.o $(BUILD)/arm9_levelinfo.o \
              $(BUILD)/arm9_iniparser.o $(BUILD)/arm9_dictionary.o \
-             $(BUILD)/arm9_rectangle.o
+             $(BUILD)/arm9_rectangle.o $(BUILD)/arm9_files.o
 
 $(BUILD)/test_levelfile: $(BUILD)/test_levelfile.o $(LEVELOBJS)
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm
@@ -221,4 +224,9 @@ $(BUILD)/test_rectangle: $(BUILD)/test_rectangle.o $(LEVELOBJS)
 # linked for real rather than stubbed: getClosestPointRectangle does the actual
 # geometry, so stubbing it would leave only a model of the resolver under test.
 $(BUILD)/test_physics: $(BUILD)/test_physics.o $(LEVELOBJS) $(BUILD)/arm9_physics.o
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+# The image decoder, with files.c linked in for real: bufferizeFile is plain
+# stdio, so the tests hand it actual files rather than a stand-in reader.
+$(BUILD)/test_pcx: $(BUILD)/test_pcx.o $(LEVELOBJS) $(BUILD)/arm9_pcx.o
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm

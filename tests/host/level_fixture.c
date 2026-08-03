@@ -43,7 +43,6 @@ platform_struct platform[NUMPLATFORMS];
 wallDoor_struct entryWallDoor;
 wallDoor_struct exitWallDoor;
 bool isNextRoom;
-char* basePath = (char*)"";
 
 /* Geometry engine registers; see the note in nds.h. */
 u32 GFX_PAL_FORMAT, GFX_TEX_FORMAT, GFX_COLOR;
@@ -73,6 +72,7 @@ void levelFixtureReset(void)
 	memset(&entryWallDoor, 0, sizeof(entryWallDoor));
 	memset(&exitWallDoor, 0, sizeof(exitWallDoor));
 	isNextRoom = false;
+	basePath = (char*)""; //owned by files.c, which is linked in for real
 
 	memset(&theEnergyDevice, 0, sizeof(theEnergyDevice));
 	memset(&theTimedButton, 0, sizeof(theTimedButton));
@@ -392,6 +392,16 @@ void readHeader(mapHeader_struct* h, FILE* f)
  * The libnds maths the ARM9 headers call out to. Real implementations, not
  * stubs - see the note in nds.h.
  */
+/*
+ * The filesystem bring-up files.c does at boot. bufferizeFile itself is real -
+ * it is plain stdio and works here - so test_pcx can hand the decoder actual
+ * files. Only the cartridge and NitroFS calls around it need standing in for.
+ */
+char* fatGetDefaultCwd(void) { return (char*)"."; }
+bool fatInitDefault(void) { return false; }
+bool nitroFSInit(char** basepath) { (void)basepath; return false; }
+void nocashMessage(const char* msg) { (void)msg; }
+
 void normalizef32(void* a)
 {
 	int32* v = (int32*)a;

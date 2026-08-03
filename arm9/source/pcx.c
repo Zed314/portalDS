@@ -103,6 +103,18 @@ ReadPCX4bits (u8 *buffer, const struct pcx_header_t *hdr, struct gl_texture_t *t
 	colorIndex = (u8 *)malloc (sizeof (u8) * texinfo->width);
 	line = (u8 *)malloc (sizeof (u8) * hdr->bytesPerScanLine);
 
+	/* The plane loop below reads line[x/8] for every x up to the width, so a
+	 * header claiming a stride narrower than that would read past the buffer
+	 * it was just sized from. */
+	if (!colorIndex || !line || hdr->bytesPerScanLine < (texinfo->width + 7) / 8)
+	{
+		free (colorIndex);
+		free (line);
+		free (texinfo->texels);
+		texinfo->texels = NULL;
+		return;
+	}
+
 /* Convert palette */
 	for(i=0;i<16;i++)
 	{
@@ -124,9 +136,11 @@ ReadPCX4bits (u8 *buffer, const struct pcx_header_t *hdr, struct gl_texture_t *t
 /* Decode line number y */
 			while (bytes--)
 			{
-				if (rle_count == 0)
+				/* See the note in ReadPCX8bits for both guards. */
+				if (rle_count <= 0)
 				{
 // if ( (rle_value = fgetc (fp)) < 0xc0)
+					if (fileptr >= filesize) goto truncated;
 					if ( (rle_value = buffer[fileptr++]) < 0xc0)
 					{
 						rle_count = 1;
@@ -135,6 +149,7 @@ ReadPCX4bits (u8 *buffer, const struct pcx_header_t *hdr, struct gl_texture_t *t
 					{
 						rle_count = rle_value - 0xc0;
 // rle_value = fgetc (fp);
+						if (fileptr >= filesize) goto truncated;
 						rle_value = buffer[fileptr++];
 					}
 				}
@@ -166,6 +181,16 @@ ReadPCX4bits (u8 *buffer, const struct pcx_header_t *hdr, struct gl_texture_t *t
 /* Release memory */
 	free (colorIndex);
 	free (line);
+	return;
+
+truncated:
+	/* As in ReadPCX8bits: a stream that ends mid-image is a failed load rather
+	 * than a partly decoded one. */
+	NOGBA("error: pixel data ended early\n");
+	free (colorIndex);
+	free (line);
+	free (texinfo->texels);
+	texinfo->texels = NULL;
 }
 
 
@@ -180,14 +205,33 @@ ReadPCX8bits (u8 *buffer, const struct pcx_header_t *hdr,
 
 	u8 magic;
 	u8 *ptr;
-	fpos_t curpos;
+	int curpos; //not fpos_t: this only ever holds fileptr, which is an index
 	int y, bytes;
+
+	if (!palette)
+	{
+		free (texinfo->texels);
+		texinfo->texels = NULL;
+		return;
+	}
 
 	/* The palette is contained in the last 769 bytes of the file */
 	// fgetpos (fp, &curpos);
 	curpos=fileptr;
 	// fseek (fp, -769, SEEK_END);
 	fileptr=filesize-769;
+
+	/* ...so a file shorter than that has no palette to seek back to, and this
+	 * used to index the buffer from a negative offset. */
+	if (fileptr < 0)
+	{
+		NOGBA("error: file too short to hold a palette\n");
+		free (texinfo->texels);
+		texinfo->texels = NULL;
+		free (palette);
+		return;
+	}
+
 	// magic = fgetc (fp);
 	magic=buffer[fileptr++];
 
@@ -224,12 +268,25 @@ ReadPCX8bits (u8 *buffer, const struct pcx_header_t *hdr,
 		ptr = &texinfo->texels[(y) * texinfo->width];
 		bytes = hdr->bytesPerScanLine;
 
+		/* A PCX stride is padded to an even byte count, so bytesPerScanLine is
+		 * wider than the image for every odd width. The whole stride has to be
+		 * decoded to stay in step with the stream, but only the first width
+		 * bytes of it belong to the row - the padding used to be written past
+		 * the end of the row, one byte per row for the whole image. */
+		int written = 0;
+
 	/* Decode line number y */
 		while (bytes--)
 		{
-			if (rle_count == 0)
+			/* <=, not ==: a 0xC0 byte is a run of length zero, which the
+			 * decrement below takes to -1. An equality test never matches
+			 * again after that, so the decoder stopped reading input
+			 * altogether and painted the rest of the image with whatever
+			 * value it happened to be holding. */
+			if (rle_count <= 0)
 			{
 	// if( (rle_value = fgetc (fp)) < 0xc0)
+				if (fileptr >= filesize) goto truncated;
 				if( (rle_value = buffer[fileptr++]) < 0xc0)
 				{
 					rle_count = 1;
@@ -238,6 +295,7 @@ ReadPCX8bits (u8 *buffer, const struct pcx_header_t *hdr,
 				{
 					rle_count = rle_value - 0xc0;
 	// rle_value = fgetc (fp);
+					if (fileptr >= filesize) goto truncated;
 					rle_value = buffer[fileptr++];
 				}
 			}
@@ -247,12 +305,26 @@ ReadPCX8bits (u8 *buffer, const struct pcx_header_t *hdr,
 	// ptr[0] = palette[rle_value * 3 + 0];
 	// ptr[1] = palette[rle_value * 3 + 1];
 	// ptr[2] = palette[rle_value * 3 + 2];
-			*ptr = rle_value;
+			if (written < texinfo->width)
+			{
+				*ptr = rle_value;
 	// ptr += 3;
-			ptr++;
+				ptr++;
+				written++;
+			}
 		}
 	}
     free(palette);
+    return;
+
+truncated:
+	/* The stream ran out mid-image. Report that as a failed load rather than
+	 * handing back a half decoded texture: ReadPCXFile turns a NULL texels
+	 * into a NULL return, which is the one thing every caller checks. */
+	NOGBA("error: pixel data ended early\n");
+	free (texinfo->texels);
+	texinfo->texels = NULL;
+	free (palette);
 }
 
 	/*static void
@@ -370,6 +442,17 @@ struct gl_texture_t * ReadPCXFile (const char *filename, char* directory)
 		free (buffer);
 		return NULL;
 	}
+	/* The size is stored as two corners and taken as their difference. A
+	 * reversed pair underflows the u16 it is kept in, which is how a garbage
+	 * header turns into a 65000 pixel row. */
+	if (header.xmax < header.xmin || header.ymax < header.ymin)
+	{
+		NOGBA("error: nonsensical image window\n");
+		free (buffer);
+		free (texinfo);
+		return NULL;
+	}
+
 	texinfo->width = header.xmax - header.xmin + 1;
 	texinfo->height = header.ymax - header.ymin + 1;
 // texinfo->format = GL_RGB;

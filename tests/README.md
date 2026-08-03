@@ -47,6 +47,7 @@ What is covered
 | `test_room` | `arm9/source/game/room.c` - room geometry, and the rectangle sections of a level file |
 | `test_rectangle` | `arm9/source/editor/rectangle.c` - closest point, ray casts, the maximal rectangle finder and the lightmap atlas packer |
 | `test_physics` | `arm9/source/game/physics.c` - the player's swept sphere collision, movement and gravity |
+| `test_pcx` | `arm9/source/pcx.c` - the image decoder, against malformed files |
 
 These are the parts of the codebase that are pure logic: data in, data out,
 no hardware. That is also where the bugs are worst, because a wrong answer in
@@ -112,6 +113,13 @@ does not crash; it silently lights two surfaces from the same pixels. The
 maximal rectangle finder gets the same treatment: rather than pinning which
 rectangle it picks, the test alternates find-and-fill over a shape and checks
 it consumes every set cell and never claims one that was not set.
+
+`test_pcx` is the only suite that needs no stand-in for the thing it tests:
+`bufferizeFile()` is plain stdio, so `files.c` is linked in for real and the
+decoder is handed actual files written to /tmp, byte for byte as a PCX is laid
+out on disk. Only the cartridge and NitroFS calls around it are stubbed. Every
+image in the game goes through this decoder, and it walks a file buffer with an
+index, which is the shape of code that reads past the end when the header lies.
 
 `test_physics` covers the other collision system - the player's, which is not
 an ARM7 rigid body but a much simpler move-then-push-out sphere. It is worth

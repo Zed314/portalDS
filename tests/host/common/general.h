@@ -45,6 +45,7 @@
 #ifdef TEST_ARM9_FULL
 
 #include <stdarg.h>
+#include <sys/stat.h>
 
 #include "common/compress.h"
 #include "common/iniparser.h"

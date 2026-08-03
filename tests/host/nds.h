@@ -180,6 +180,16 @@ extern u32 GFX_PAL_FORMAT, GFX_TEX_FORMAT, GFX_COLOR;
 
 void glPolyFmt(u32 params);
 
+/*
+ * Filesystem bring-up, from libfat and libfilesystem. files.c calls these at
+ * boot; bufferizeFile() below them is plain stdio and works here unchanged,
+ * which is what lets test_pcx hand the decoder real files.
+ */
+void nocashMessage(const char* msg);
+char* fatGetDefaultCwd(void);
+bool fatInitDefault(void);
+bool nitroFSInit(char** basepath);
+
 #endif /* TEST_ARM9_FULL */
 
 #endif
