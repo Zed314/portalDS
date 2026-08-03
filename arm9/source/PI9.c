@@ -232,7 +232,7 @@ void togglePlatform(u8 id, bool active)
 
 void applyForce(u8 id, vect3D pos, vect3D v) //(id;[posx|posy][posz][vx][vy][vz])
 {
-	if(id>NUMOBJECTS || !objects[id].used)return;
+	if(id>=NUMOBJECTS || !objects[id].used)return;
 	fifoSendValue32(FIFO_USER_08,PI_APPLYFORCE|((id)<<PISIGNALDATA));
 	fifoSendValue32(FIFO_USER_08,(((s16)pos.x))|(((s16)pos.y)<<16));
 	fifoSendValue32(FIFO_USER_08,((s16)pos.z));
@@ -243,7 +243,7 @@ void applyForce(u8 id, vect3D pos, vect3D v) //(id;[posx|posy][posz][vx][vy][vz]
 
 void setVelocity(u8 id, vect3D v) //(id;[vx][vy][vz])
 {
-	if(id>NUMOBJECTS || !objects[id].used)return;
+	if(id>=NUMOBJECTS || !objects[id].used)return;
 	fifoSendValue32(FIFO_USER_08,PI_SETVELOCITY|((id)<<PISIGNALDATA));
 	fifoSendValue32(FIFO_USER_08,(v.x));
 	fifoSendValue32(FIFO_USER_08,(v.y));

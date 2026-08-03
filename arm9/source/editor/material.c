@@ -253,7 +253,9 @@ char** getMaterialList(int* m, int** cl)
 	return l;
 }
 
-material_struct* getMaterial(u16 i){if(i<0||i>NUMMATERIALS)i=0;return &materials[i];}
+// i>=, not i>: materials[NUMMATERIALS] is one past the end. The i<0 that used
+// to sit beside it was dead - i is unsigned.
+material_struct* getMaterial(u16 i){if(i>=NUMMATERIALS)i=0;return &materials[i];}
 
 void freeMaterialList(char** l)
 {
