@@ -267,34 +267,46 @@ static void test_a_sphere_rests_a_radius_away_from_a_wall(void)
 	TEST_ASSERT_INT32_WITHIN_MESSAGE(2, PLAYERRADIUS, gap, "did not come to rest a radius off the wall");
 }
 
-static void test_a_sphere_exactly_in_the_plane_is_not_pushed_out(void)
+static void test_a_sphere_exactly_in_the_plane_is_pushed_clear(void)
 {
 	/*
-	 * Pinning a real defect rather than a behaviour worth keeping.
+	 * The centre landing exactly on the closest point of a surface used to
+	 * leave the correction with no direction to push along and a zero length
+	 * to scale by - a divide by zero, which on the DS meant the hardware
+	 * divider handing back whatever it held and the player being displaced by
+	 * an arbitrary amount.
 	 *
-	 * When the sphere's centre lands exactly on the closest point of a
-	 * surface, the distance d is zero and the correction divides by it:
-	 *
-	 *     v = divideVect(vectMult(v, -((o->radius<<6)-d)), d);
-	 *
-	 * The overlap is detected - the function returns true - but the
-	 * correction is a divide by zero, so nothing useful happens. On the host
-	 * the shim's divf32 returns 0 and the sphere simply is not moved, which
-	 * is what this test observes. On a DS the hardware divider returns
-	 * something implementation defined instead, so the player would be
-	 * displaced by an arbitrary amount rather than left alone.
-	 *
-	 * That difference is why this is pinned and not asserted as correct: the
-	 * test cannot show what the DS would do, only that the case is reachable
-	 * and unhandled. Landing exactly in a surface's plane is rare but not
-	 * impossible - portal exits place the player on plane boundaries.
+	 * With no motion to back out along, the escape is against gravity: the
+	 * sphere comes off the floor by its radius. That is short of the resting
+	 * height, so it takes a couple of passes to settle - which is fine, it is
+	 * a degenerate case, and settling slowly beats being teleported.
 	 */
 	addFloor();
 	physicsObject_struct o = playerAt(roomSpace(1536, 0, 1536));
-	const vect3D before = o.position;
 
-	TEST_ASSERT_TRUE_MESSAGE(checkObjectCollision(&o, &room), "the overlap should still be detected");
-	TEST_ASSERT_EQUAL_INT32_MESSAGE(before.y, o.position.y, "host behaviour: the divide by zero yields no correction");
+	TEST_ASSERT_TRUE(checkObjectCollision(&o, &room));
+	TEST_ASSERT_EQUAL_INT32_MESSAGE(PLAYERRADIUS, o.position.y, "should have come off the surface by one radius");
+
+	for(int i=0;i<8;i++)checkObjectCollision(&o, &room);
+	TEST_ASSERT_EQUAL_INT32_MESSAGE(FLOOR_REST_HEIGHT, o.position.y, "should have settled at the resting height");
+}
+
+static void test_a_sphere_in_the_plane_backs_out_the_way_it_came(void)
+{
+	/*
+	 * When the object was moving, the escape direction comes from its motion
+	 * rather than from gravity - so walking into a wall and landing exactly on
+	 * its plane pushes back the way it came, not upwards.
+	 */
+	addWall();
+	physicsObject_struct o = playerAt(roomSpace(2*TILESIZE*2, 100, 1536));
+	o.speed = vect(200, 0, 0);
+
+	TEST_ASSERT_TRUE(checkObjectCollision(&o, &room));
+
+	TEST_ASSERT_EQUAL_INT32_MESSAGE(roomSpace(2*TILESIZE*2, 100, 1536).x - PLAYERRADIUS, o.position.x,
+		"should have backed out along the reversed motion");
+	TEST_ASSERT_EQUAL_INT32_MESSAGE(100, o.position.y, "gravity should not have been used as the escape here");
 }
 
 static void test_a_point_outside_the_grid_collides_with_nothing(void)
@@ -741,44 +753,26 @@ static void test_every_step_of_a_sweep_is_checked(void)
 	}
 }
 
-static void test_a_fast_walk_into_a_wall_passes_through_it(void)
+static void test_a_walk_starting_inside_a_wall_is_pushed_back_out(void)
 {
 	/*
-	 * Pinning a real defect, and the most serious one this suite found.
-	 *
-	 * The resolver pushes the sphere away from the closest point on the
-	 * surface - which means away from whichever side of the plane its centre
-	 * is currently on. Nothing records which side it started on. So once a
-	 * step carries the centre past the plane, the correction ejects it out
-	 * the *far* side instead of pushing it back, and the next frame it is
-	 * beyond the cull distance and the wall is not considered at all.
-	 *
-	 * Two things have to line up, and both do. The step has to land the
-	 * centre on or past the plane: at exactly the plane the correction
-	 * divides by a zero distance and does nothing (the same degeneracy as
-	 * test_a_sphere_exactly_in_the_plane_is_not_pushed_out), and past it the
-	 * correction has the wrong sign. And the cull box is only a radius wide
-	 * either side of the surface, so a sphere that ends up 257 units through
-	 * stops being tested against it.
-	 *
-	 * The threshold here is about a hundred units per frame. Walking cannot
-	 * reach that - ground acceleration and friction settle at roughly fifty -
-	 * but coming out of a portal can, and that is the one thing this game is
-	 * about. Fixing it properly means giving the resolver the swept segment
-	 * rather than just the end point, which is a redesign rather than a
-	 * patch, so it is pinned here instead: this test documents the boundary
-	 * and will fail if anybody moves it.
+	 * A player who begins the frame already inside a wall's resting zone -
+	 * which a portal exit or a spawn point can leave them in - and keeps
+	 * pushing into it. This used to end up on the far side: the step landed
+	 * the centre exactly on the plane, the correction divided by zero and did
+	 * nothing, and the frame after that the centre was through and the
+	 * correction had the wrong sign.
 	 */
 	addWall();
 	addFloor();
 	physicsObject_struct o = playerAt(roomSpace(2*TILESIZE*2 - 100, FLOOR_REST_HEIGHT, 1536));
 	o.speed = vect(100, 0, 0);
 
-	for(int i=0;i<10;i++)collideObjectRoom(&o, &room);
+	for(int i=0;i<20;i++)collideObjectRoom(&o, &room);
 
 	const int32 wallPlane = 2*TILESIZE*2;
-	TEST_ASSERT_GREATER_THAN_INT32_MESSAGE(wallPlane, o.position.x + TILESIZE,
-		"the tunnelling this pins has been fixed - remove this test and keep the fix");
+	TEST_ASSERT_LESS_THAN_INT32_MESSAGE(wallPlane, o.position.x + TILESIZE,
+		"the object ended up on the far side of the wall");
 }
 
 static void test_movement_tolerates_null(void)
@@ -911,7 +905,8 @@ int main(void)
 	RUN_TEST(test_a_sphere_beside_the_floor_does_not_touch_it);
 	RUN_TEST(test_a_wall_pushes_horizontally);
 	RUN_TEST(test_a_sphere_rests_a_radius_away_from_a_wall);
-	RUN_TEST(test_a_sphere_exactly_in_the_plane_is_not_pushed_out);
+	RUN_TEST(test_a_sphere_exactly_in_the_plane_is_pushed_clear);
+	RUN_TEST(test_a_sphere_in_the_plane_backs_out_the_way_it_came);
 	RUN_TEST(test_a_point_outside_the_grid_collides_with_nothing);
 	RUN_TEST(test_a_floor_and_a_wall_are_both_resolved);
 	RUN_TEST(test_collision_tolerates_null);
@@ -947,7 +942,7 @@ int main(void)
 	RUN_TEST(test_a_crawling_horizontal_speed_snaps_to_zero);
 	RUN_TEST(test_a_slow_walk_into_a_wall_is_blocked);
 	RUN_TEST(test_every_step_of_a_sweep_is_checked);
-	RUN_TEST(test_a_fast_walk_into_a_wall_passes_through_it);
+	RUN_TEST(test_a_walk_starting_inside_a_wall_is_pushed_back_out);
 	RUN_TEST(test_movement_tolerates_null);
 
 	RUN_TEST(test_changing_gravity_sets_both_vectors);

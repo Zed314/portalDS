@@ -71,6 +71,38 @@ vect3D convertCoord(room_struct* r, vect3D p)
 
 const int32 transY=inttof32(5);
 
+/**
+ * @brief Correction to apply when an object's centre lands exactly on a surface.
+ *
+ * The push-out below is along the vector from the centre to the closest point
+ * on the surface, scaled by how far in the centre has sunk. When the centre
+ * lands *on* that point the vector is zero: there is no direction left to push
+ * along, and the scaling divides by the zero length. That is undefined - on the
+ * DS the hardware divider simply returns whatever it happens to hold, so the
+ * object was displaced by an arbitrary amount rather than resolved.
+ *
+ * Rare, but reachable: a portal exit places the player on a plane boundary, and
+ * a step of a swept move can land there exactly.
+ *
+ * There is no direction in the geometry any more, so this takes one from the
+ * motion - back out the way we came in - and falls back to straight up when the
+ * object was not moving at all. Neither needs the surface's normal, whose sign
+ * convention differs between here and the ARM7 (see transferRectangle()).
+ *
+ * @param o object being resolved.
+ * @return the correction, or a zero vector if no direction can be found.
+ */
+static vect3D degenerateEscape(physicsObject_struct* o)
+{
+	vect3D back=vectMultInt(o->speed,-1);
+	if(!back.x && !back.y && !back.z)back=vectMultInt(normGravityVector,-1);
+
+	const int32 l=magnitude(back);
+	if(!l)return vect(0,0,0);
+
+	return vectMult(divideVect(back,l),o->radius);
+}
+
 //TODO : refactor/clean up this shit, maybe switch to octrees ?
 bool checkObjectCollisionCell(gridCell_struct* gc, physicsObject_struct* o, room_struct* r)
 {
@@ -130,7 +162,8 @@ bool checkObjectCollisionCell(gridCell_struct* gc, physicsObject_struct* o, room
 				// sqd=v.x*v.x+v.y*v.y+v.z*v.z;
 				int32 sqd=squaredMagnitude+divf32(gval*gval,transY);
 				u32 d=sqrtf32((sqd));
-				v=divideVect(vectMult(vect(v.x,v.y,v.z),-((o->radius<<6)-d)),d);
+				if(d)v=divideVect(vectMult(vect(v.x,v.y,v.z),-((o->radius<<6)-d)),d);
+				else v=degenerateEscape(o); //centre exactly on the surface
 				o->position=addVect(o->position,v);
 				o1=vectDifference(o->position,convertVect(vect(r->position.x,0,r->position.y)));
 				M=addVect(o1,vmM);
@@ -155,7 +188,8 @@ bool collideRectangle(physicsObject_struct* o, room_struct* r, vect3D p, vect3D 
 	{
 		int32 sqd=(v2.x*v2.x)+(v2.y*v2.y)+(v2.z*v2.z)+divf32(gval*gval,transY);
 		u32 d=sqrtf32((sqd));
-		v=divideVect(vectMult(vect(v.x,v.y,v.z),-((o->radius<<6)-d)),d);
+		if(d)v=divideVect(vectMult(vect(v.x,v.y,v.z),-((o->radius<<6)-d)),d);
+		else v=degenerateEscape(o); //centre exactly on the surface
 		o->position=addVect(o->position,v);
 		return true;
 	}
