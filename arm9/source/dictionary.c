@@ -126,19 +126,25 @@ dictionary * dictionary_new(int size)
 
 	/* If no size was specified, allocate space for DICTMINSZ */
 	if (size<DICTMINSZ) size=DICTMINSZ ;
-    d = (dictionary *)malloc(1* sizeof(dictionary));
 
-    memset(d, 0, 1*sizeof(dictionary));
+	/* calloc rather than malloc+memset: the memset of the dictionary used to
+	 * run before the NULL check below it, so a failed allocation was written
+	 * to rather than reported. The three arrays had no check at all. */
+	d = (dictionary *)calloc(1, sizeof(dictionary));
 	if (!d) {
 		return NULL;
 	}
 	d->size = size ;
-	d->val  = (char **)malloc(size* sizeof(char*));
-	memset(d->val , 0, size*sizeof(char*));
-	d->key  = (char **)malloc(size* sizeof(char*));
-	memset(d->key , 0, size*sizeof(char*));
-	d->hash = (unsigned int *)malloc(size* sizeof(unsigned));
-	memset(d->hash , 0, size*sizeof(unsigned));
+	d->val  = (char **)calloc(size, sizeof(char*));
+	d->key  = (char **)calloc(size, sizeof(char*));
+	d->hash = (unsigned int *)calloc(size, sizeof(unsigned));
+	if (!d->val || !d->key || !d->hash) {
+		free(d->val);
+		free(d->key);
+		free(d->hash);
+		free(d);
+		return NULL;
+	}
 	return d ;
 }
 
