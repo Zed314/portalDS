@@ -302,9 +302,21 @@ ARM_CODE void OBBAARContacts(AAR_struct* a, OBB_struct* o, bool port)
         vect3D p2=v[AARSegments[i][1]];
         vect3D uu1=vv[AARSegments[i][0]];
         vect3D uu2=vv[AARSegments[i][1]];
-        vect3D n1, n2;
-        int32 k1, k2;
-        bool b1, b2;
+        /* All six of these used to be uninitialised. b1 and b2 are what
+         * decide whether a contact is emitted at all, and clipSegmentOBB
+         * assigns them only on some of its paths - so which contacts a
+         * body got against the static world depended on whatever was left
+         * on the stack. collideOBBs sets its copies up correctly; this,
+         * the path every body takes against every wall and floor, did not.
+         *
+         * k1 and k2 are read by clipSegmentOBB (it maxes and mins against
+         * them) and are otherwise dead - the lines that consumed them are
+         * commented out in both callers. They are initialised here so the
+         * reads are defined; anyone reviving them needs to work out the
+         * right starting values rather than trust these. */
+        vect3D n1=vect(0,0,0), n2=vect(0,0,0);
+        int32 k1=0, k2=0;
+        bool b1=false, b2=false;
         if(clipSegmentOBB(ss, u, &p1, &p2, uu[AARSegmentsPD[i][1]], &uu1, &uu2, uuu[AARSegmentsPD[i][1]], &n1, &n2, &b1, &b2, &k1, &k2))
         {
             if(b1)
