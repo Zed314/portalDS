@@ -525,23 +525,30 @@ void AARsOBBContacts(OBB_struct* o, bool sleep)
                 //if (idx>= )continue;
                 node_struct* n=&AARgrid.nodes[idx];
                 if (!n) continue;
+                // A cell can report a length with no array behind it, because
+                // allocateData returns NULL when the broadphase arena is full.
+                // The guard used to cover only the contact call, and the ground
+                // check and the visited mark below it dereferenced n->data
+                // anyway.
+                if (!n->data)
+                    continue;
+
                 for(int k=0;k<n->length;k++)
                 {
-                    u16 old=o->numContactPoints;
-                    if (n->data){
-                        size_t idx=n->data[k];
-                        if(!lalala[idx])
-                        {
-                            AAROBBContacts(&aaRectangles[n->data[k]], o, v, port);
-                        }
+                    const u16 old=o->numContactPoints;
+                    const u16 rect=n->data[k];
+
+                    if(!lalala[rect])
+                    {
+                        AAROBBContacts(&aaRectangles[rect], o, v, port);
                     }
                     if(o->groundID<0 
                     && o->numContactPoints>old 
-                    && aaRectangles[n->data[k]].normal.y>0)
+                    && aaRectangles[rect].normal.y>0)
                     {
-                        o->groundID=n->data[k];
+                        o->groundID=rect;
                     }
-                    lalala[n->data[k]]=1;
+                    lalala[rect]=1;
                 }
             }
         }
