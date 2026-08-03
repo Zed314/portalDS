@@ -42,6 +42,7 @@ What is covered
 | `test_obb` | `arm7/source/OBB.c` - body setup, inertia, corners, bounding boxes, torque |
 | `test_collision` | `arm7/source/AAR.c` + the box-box narrow phase - contact generation and the broadphase grid |
 | `test_solver` | `arm7/source/OBB.c` - impulses, integration, sleeping, portal transport |
+| `test_platform` | `arm7/source/platform.c` - moving platforms, arrival, and carrying bodies |
 
 These are the parts of the codebase that are pure logic: data in, data out,
 no hardware. That is also where the bugs are worst, because a wrong answer in
@@ -66,7 +67,16 @@ fixed point impulse solver has no closed form to compare against:
 - an impulse never adds energy, so a stack of cubes cannot explode;
 - a body resting on a floor is still resting on it hundreds of frames later;
 - an orientation matrix is still a rotation after hundreds of integrations,
-  which is only true because `fixMatrix()` runs every step.
+  which is only true because `fixMatrix()` runs every step;
+- a body left standing on a rising platform is still standing on it two
+  hundred steps later, having gone up with it.
+
+Where a property cannot hold exactly, the inaccuracy is pinned rather than
+papered over with a loose tolerance: `test_platform` asserts that a platform
+overshoots its destination by exactly 512 units, because `dotProduct()`
+truncates and that is what the arrival test can actually detect. Fixing it
+would move where every platform in every shipped level comes to rest, which is
+a level design decision.
 
 What is NOT covered, and why
 ----------------------------

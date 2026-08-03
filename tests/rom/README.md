@@ -26,10 +26,41 @@ apart, because both move together; writing the encoding out by hand from the
 layout documented in `common/include/PIC.h` is what gives the test something
 independent to compare against. See `include/fifo_protocol.h`.
 
-This found a real bug on its first complete run: `PI_ADDBOX` read its last
-argument word without waiting for it, so a box could be created with a zero
-sine and silently face the wrong way. The test named "the last argument word
-is waited for" is the regression test for it.
+What it has turned up
+---------------------
+
+**`PI_ADDBOX` did not wait for its last argument word.** Found on the first
+complete run: the decoder read the sine without checking it had arrived, so a
+box could be created with a zero sine and silently face the wrong way. Fixed;
+the test named "the last argument word is waited for" is the regression test.
+
+**The FIFO has no backpressure, and one `swiWaitForVBlank()` is what saves
+it.** Every sender in `PI9.c` ignores what `fifoSendValue32()` returns, so a
+full queue drops words with nothing raised anywhere. A dropped word is worse
+than a lost command: the decoder reads a fixed number of arguments per opcode,
+so the next word is taken as the wrong field and the stream stays skewed from
+there on. Collision geometry then goes missing with nothing in the logs - a
+wall you fall through in one chamber.
+
+Nothing in the protocol prevents that. What prevents it in practice is a single
+line in `transferRectangles()`:
+
+    if(!(i%8))swiWaitForVBlank();
+
+Eight rectangles is 64 words, so a level load is metered out at 64 words a
+frame no matter how many rectangles a room has. Sent back to back instead, the
+stream breaks up here at around 48 rectangles: the ARM7 ends up waiting for
+words that were dropped and stops replying entirely.
+
+That line is load-bearing and reads like a courtesy. It predates every other
+sender, and none of them - `createOBB`, `updatePortal`, `createPlatform` - have
+anything equivalent; they are just never called in long enough runs to matter.
+The burst tests pin the behaviour so that a future change which drops the wait,
+or adds a caller that sends a comparable run of commands, fails here rather
+than in a level.
+
+The exact rectangle count is emulator-dependent and is not asserted; see the
+comment on `BURST_RECTS` in `source/main.c`.
 
 How it is built
 ---------------

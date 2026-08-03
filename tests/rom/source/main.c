@@ -80,6 +80,41 @@ static void applyForce(u32 id, s16 ox, s16 oy, s16 oz, s32 vx, s32 vy, s32 vz)
     arg(vx); arg(vy); arg(vz);
 }
 
+/* PI_ADDPLATFORM: id; [origx][origy][origz][destx][desty][destz]
+ * An id at or above NUM_PLATFORM_SLOTS selects a back-and-forth platform; the
+ * slot itself is the id modulo the pool size. */
+static void addPlatform(u32 id, s32 ox, s32 oy, s32 oz, s32 dx, s32 dy, s32 dz)
+{
+    cmd(CMD_ADDPLATFORM, id);
+    arg(ox); arg(oy); arg(oz);
+    arg(dx); arg(dy); arg(dz);
+}
+
+/* PI_UPDATEPORTAL: id; [px][py][pz][normal][p0x][p0y][p0z]
+ *
+ * The ARM7 echoes the tangent back on the command channel, so the caller has
+ * to drain three words afterwards or they pile up unread. */
+static void updatePortal(u32 id, s32 px, s32 py, s32 pz, u32 normalBits,
+                         s32 t0x, s32 t0y, s32 t0z)
+{
+    cmd(CMD_UPDATEPORTAL, id);
+    arg(px); arg(py); arg(pz);
+    arg(normalBits);
+    arg(t0x); arg(t0y); arg(t0z);
+}
+
+static void drainPortalEcho(void)
+{
+    for (int i = 0; i < 3; i++)
+    {
+        int spins = 0;
+        while (!fifoCheckValue32(FIFO_USER_08) && spins < 100000)
+            spins++;
+        if (fifoCheckValue32(FIFO_USER_08))
+            fifoGetValue32(FIFO_USER_08);
+    }
+}
+
 /* --- receiving replies ---------------------------------------------------- */
 
 typedef struct
@@ -88,15 +123,21 @@ typedef struct
     s32 x, y, z;
     s32 m[9];      /* only the six transmitted elements are filled in */
     s16 groundID;
-    bool portaled;
+    bool portaled; /* sticky: set once seen, so a single frame is not missed */
     int updates;   /* how many reports arrived since the last clear */
 } report_t;
 
 static report_t reports[NUM_BODIES];
 
+/* Platforms report on the same channel with an id at or above NUM_BODIES, and
+ * carry a position only. */
+#define NUM_PLATFORM_SLOTS (8)
+static report_t platformReports[NUM_PLATFORM_SLOTS];
+
 static void clearReports(void)
 {
     memset(reports, 0, sizeof(reports));
+    memset(platformReports, 0, sizeof(platformReports));
 }
 
 /*
@@ -119,7 +160,18 @@ static void drainReports(void)
         const s32 pz = fifoGetValue32(FIFO_USER_04);
 
         if (k >= NUM_BODIES)
-            continue; /* a platform: position only, nothing more to read */
+        {
+            /* A platform: position only, nothing more to read. */
+            const int slot = k - NUM_BODIES;
+            if (slot < NUM_PLATFORM_SLOTS)
+            {
+                report_t *p = &platformReports[slot];
+                p->seen = true;
+                p->updates++;
+                p->x = px; p->y = py; p->z = pz;
+            }
+            continue;
+        }
 
         while (!fifoCheckValue32(FIFO_USER_05));
         while (!fifoCheckValue32(FIFO_USER_06));
@@ -130,7 +182,8 @@ static void drainReports(void)
         r->updates++;
         r->x = px; r->y = py; r->z = pz;
         r->groundID = (s16)((h >> 17) - 1);
-        r->portaled = (h >> 16) & 1;
+        if ((h >> 16) & 1)
+            r->portaled = true;
 
         s32 w = fifoGetValue32(FIFO_USER_05);
         r->m[0] = (s16)w - F32_ONE;
@@ -482,6 +535,214 @@ static void test_a_sleeping_body_stops_being_transmitted(void)
     checkTrue(!reports[0].seen, "a settled body is still being transmitted");
 }
 
+/* --- a whole level in one burst ------------------------------------------- */
+
+/*
+ * Rectangles sent back to back per level load test.
+ *
+ * A room may hold up to NUMAARS (300) of them, but transferRectangles() does
+ * not send them back to back: it waits for a VBlank every eight, which is 64
+ * FIFO words per frame. That one line is the only thing keeping a level load
+ * inside what the queue can hold, and nothing in the sending path would notice
+ * if it were removed - createAAR() ignores fifoSendValue32()'s return value,
+ * like every other sender in PI9.c.
+ *
+ * This sends an unpaced burst on purpose, to show what the pacing is standing
+ * between the game and. Past roughly 48 rectangles the stream breaks up here:
+ * words are dropped, the ARM7 stalls waiting for ones that never arrive, and
+ * nothing comes back at all. See "the FIFO has no backpressure" in README.md.
+ *
+ * The size below is not asserted anywhere on purpose. Where exactly it breaks
+ * is a race between how fast the ARM9 fills the queue and how fast the ARM7
+ * drains it, and FIFO timing is the thing this emulator is least likely to
+ * reproduce faithfully. So this stays comfortably clear of the cliff and
+ * covers the burst path rather than the edge.
+ */
+#define BURST_RECTS (32)
+
+static void test_a_full_level_load_survives_the_burst(void)
+{
+    /*
+     * A level load is a long run of createAAR() calls, eight FIFO words each,
+     * with nothing checked on the way out. If one of those words is dropped the
+     * stream desynchronises: every following word is read as the wrong field,
+     * and collision geometry silently goes missing. In game that is a wall you
+     * fall through in one chamber, with nothing in the logs.
+     *
+     * The probe is the *last* rectangle of the burst - the one most likely to
+     * be lost - and it is the only thing holding the test body up. If a single
+     * word went astray, the body falls forever and this fails.
+     */
+    cmd(CMD_RESETALL, 0);
+
+    /* Filler, spread over the XZ plane so the broadphase stays sensible, and
+     * parked far above so it cannot interfere with the fall. */
+    for (u32 i = 0; i < BURST_RECTS - 1; i++)
+    {
+        const s32 x = -INT_TO_F32(16) + (s32)(i % 16) * INT_TO_F32(2);
+        const s32 z = -INT_TO_F32(16) + (s32)(i / 16) * INT_TO_F32(2);
+        addAAR(i, INT_TO_F32(1), 0, INT_TO_F32(1), AAR_NORMAL_POS_Y,
+               x, INT_TO_F32(50), z);
+    }
+
+    /* The real floor, sent last. */
+    const s32 h = INT_TO_F32(16);
+    addAAR(BURST_RECTS - 1, h * 2, 0, h * 2, AAR_NORMAL_POS_Y, -h, 0, -h);
+
+    cmd(CMD_MAKEGRID, 0);
+    cmd(CMD_START, 0);
+    clearReports();
+
+    addUnitCube(0, 0, INT_TO_F32(3), 0);
+    checkTrue(waitForReport(0, REPLY_TIMEOUT), "no reply after a full level load");
+
+    stepFrames(130);
+
+    /* Landed on the last rectangle of the burst. */
+    checkNear(INT_TO_F32(1), reports[0].y, 700, "resting height after a level load");
+    checkTrue(reports[0].groundID == BURST_RECTS - 1,
+              "the last rectangle of the burst is not what it landed on");
+}
+
+static void test_the_command_stream_is_still_aligned_after_a_burst(void)
+{
+    /*
+     * A desynchronised stream can still look healthy if the test only checks
+     * that something arrived. This sends a burst and then a command whose
+     * arguments are easy to verify exactly - a body at a known position - so a
+     * stream that slipped by even one word shows up as a wrong coordinate
+     * rather than as silence.
+     */
+    cmd(CMD_RESETALL, 0);
+    for (u32 i = 0; i < BURST_RECTS; i++)
+    {
+        const s32 x = -INT_TO_F32(16) + (s32)(i % 16) * INT_TO_F32(2);
+        const s32 z = -INT_TO_F32(16) + (s32)(i / 16) * INT_TO_F32(2);
+        addAAR(i, INT_TO_F32(1), 0, INT_TO_F32(1), AAR_NORMAL_POS_Y,
+               x, INT_TO_F32(50), z);
+    }
+    cmd(CMD_MAKEGRID, 0);
+    cmd(CMD_START, 0);
+    clearReports();
+
+    addUnitCube(0, INT_TO_F32(5), INT_TO_F32(7), -INT_TO_F32(3));
+    checkTrue(waitForReport(0, REPLY_TIMEOUT), "no reply after the burst");
+
+    checkNear(INT_TO_F32(5), reports[0].x, 4, "x after a burst");
+    checkNear(-INT_TO_F32(3), reports[0].z, 4, "z after a burst");
+    checkNear(INT_TO_F32(7), reports[0].y, INT_TO_F32(1), "y after a burst");
+}
+
+/* --- platforms ------------------------------------------------------------ */
+
+static void test_platform_commands_round_trip(void)
+{
+    /*
+     * Platforms report on the same channel as bodies but with an id at or above
+     * NUM_BODIES and only three words instead of six. A receiver that got that
+     * wrong would desynchronise the reply stream the moment a level contained
+     * one.
+     */
+    resetWorldEmpty();
+    addPlatform(0, 0, 0, 0, 0, INT_TO_F32(4), 0);
+
+    for (int i = 0; i < REPLY_TIMEOUT && !platformReports[0].seen; i++)
+    {
+        swiWaitForVBlank();
+        drainReports();
+    }
+
+    checkTrue(platformReports[0].seen, "no platform reply arrived");
+    checkNear(0, platformReports[0].y, 64, "a new platform sits at its origin");
+
+    /* Started, it should climb. */
+    cmd(CMD_TOGGLEPLATFORM, 0);
+    arg(1);
+    stepFrames(30);
+
+    checkTrue(platformReports[0].y > 0, "a started platform did not move");
+}
+
+static void test_moving_a_platform_is_reported(void)
+{
+    resetWorldEmpty();
+    addPlatform(0, 0, 0, 0, 0, INT_TO_F32(4), 0);
+    for (int i = 0; i < REPLY_TIMEOUT && !platformReports[0].seen; i++)
+    {
+        swiWaitForVBlank();
+        drainReports();
+    }
+    checkTrue(platformReports[0].seen, "no platform reply arrived");
+
+    cmd(CMD_UPDATEPLATFORM, 0);
+    arg(INT_TO_F32(6));
+    arg(INT_TO_F32(2));
+    arg(-INT_TO_F32(4));
+    stepFrames(10);
+
+    checkNear(INT_TO_F32(6), platformReports[0].x, 64, "moved platform x");
+    checkNear(INT_TO_F32(2), platformReports[0].y, 64, "moved platform y");
+    checkNear(-INT_TO_F32(4), platformReports[0].z, 64, "moved platform z");
+}
+
+/* --- portals -------------------------------------------------------------- */
+
+static void test_a_body_travels_through_a_portal_pair(void)
+{
+    /*
+     * Portal transport is the one command that changes a body's position
+     * without the solver moving it, and the teleport flag rides back in the
+     * spare bit of the reply header. Both are checked here.
+     */
+    resetWorldEmpty();
+
+    /* Two portals facing up: one under the body, one a long way off. */
+    updatePortal(0, 0, 0, 0, AAR_NORMAL_POS_Y, F32_ONE, 0, 0);
+    drainPortalEcho();
+    updatePortal(1, INT_TO_F32(60), 0, 0, AAR_NORMAL_POS_Y, F32_ONE, 0, 0);
+    drainPortalEcho();
+
+    /* Just in front of portal 0, driven down through it. */
+    addUnitCube(0, 0, F32_ONE / 4, 0);
+    checkTrue(waitForReport(0, REPLY_TIMEOUT), "no reply arrived");
+    setVelocity(0, 0, -INT_TO_F32(30), 0);
+
+    stepFrames(40);
+
+    checkTrue(reports[0].portaled, "the body never reported a teleport");
+    checkTrue(reports[0].x > INT_TO_F32(40),
+              "the body did not come out of the far portal");
+}
+
+/* --- robustness ----------------------------------------------------------- */
+
+static void test_an_unknown_opcode_does_not_wedge_the_engine(void)
+{
+    /*
+     * The decoder's default case throws the whole queue away rather than trying
+     * to resynchronise, which is the right call - but it does mean a stray word
+     * eats whatever was queued behind it. What must not happen is the engine
+     * getting stuck, so this checks it still accepts work afterwards.
+     */
+    resetWorldEmpty();
+    addUnitCube(0, 0, INT_TO_F32(40), 0);
+    checkTrue(waitForReport(0, REPLY_TIMEOUT), "no reply before the bad opcode");
+
+    /* 40 is not a valid opcode. */
+    cmd(40, 0);
+    stepFrames(10);
+
+    /* The engine should still be alive and taking commands. */
+    clearReports();
+    cmd(CMD_RESETALL, 0);
+    cmd(CMD_START, 0);
+    addUnitCube(1, INT_TO_F32(2), INT_TO_F32(9), 0);
+
+    checkTrue(waitForReport(1, REPLY_TIMEOUT),
+              "the engine stopped responding after an unknown opcode");
+    checkNear(INT_TO_F32(2), reports[1].x, 4, "x after an unknown opcode");
+}
+
 /* --- runner --------------------------------------------------------------- */
 
 typedef struct
@@ -505,6 +766,12 @@ static const testcase_t tests[] = {
     {"reset clears every body",              test_reset_clears_every_body},
     {"several bodies keep their identities", test_several_bodies_keep_their_identities},
     {"a sleeping body stops being sent",     test_a_sleeping_body_stops_being_transmitted},
+    {"a full level load survives the burst", test_a_full_level_load_survives_the_burst},
+    {"the stream is aligned after a burst",  test_the_command_stream_is_still_aligned_after_a_burst},
+    {"platform commands round trip",         test_platform_commands_round_trip},
+    {"moving a platform is reported",        test_moving_a_platform_is_reported},
+    {"a body travels through a portal pair", test_a_body_travels_through_a_portal_pair},
+    {"an unknown opcode does not wedge",     test_an_unknown_opcode_does_not_wedge_the_engine},
 };
 
 #define NUM_TESTS ((int)(sizeof(tests) / sizeof(tests[0])))

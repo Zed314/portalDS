@@ -64,7 +64,7 @@ I_ARM9    := -I$(ROOT)/arm9/include
 # it the tests would be exercising the ARM9's version of the portal maths.
 D_ARM7    := -DARM7 -D__NDS__
 
-SUITES    := fixed_math matrix compression obb collision solver
+SUITES    := fixed_math matrix compression obb collision solver platform
 BINS      := $(addprefix $(BUILD)/test_,$(SUITES))
 
 .PHONY: all build test clean
@@ -146,4 +146,7 @@ $(BUILD)/test_collision: $(BUILD)/test_collision.o $(PHYSOBJS)
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm
 
 $(BUILD)/test_solver: $(BUILD)/test_solver.o $(PHYSOBJS)
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+$(BUILD)/test_platform: $(BUILD)/test_platform.o $(PHYSOBJS)
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm
