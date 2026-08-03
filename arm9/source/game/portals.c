@@ -252,9 +252,10 @@ void checkPortalPlayerWarp(portal_struct* p)
 	if(r)
 	{
 		if(z<0 && p->oldZ>=0){currentPortal=p;warpPlayer(p,pl);gravityGunTarget=-1;}
-		pl->oldInPortal=pl->inPortal;
-		if(abs(z)<PLAYERRADIUS){pl->inPortal=true;}
-		else pl->inPortal=false;
+		//Only ever set here. Whether the player is in a portal is one fact per
+		//frame rather than one per portal, so updatePortals() is what clears it
+		//and remembers the previous value; see the note there.
+		if(abs(z)<PLAYERRADIUS)pl->inPortal=true;
 	}
 	p->oldZ=z;
 }
@@ -301,6 +302,23 @@ void updatePortals(void)
 {
 	if(portal1.used&&portal2.used)
 	{
+		/*
+		 * Take the reading once for the frame, then let either portal set it.
+		 *
+		 * Both calls below used to copy inPortal into oldInPortal themselves
+		 * and then overwrite inPortal, so the second one read the first one's
+		 * answer as though it were last frame's. isPointInPortal() tests only
+		 * the two in-plane axes, which makes it true for the whole column
+		 * through a portal rather than just the mouth of it - so standing in
+		 * one portal while the other faces it, which is the arrangement the
+		 * game is built around, left the pair disagreeing every single frame.
+		 * The edge test in updatePlayer() then fired the enter or exit sound
+		 * on every frame for as long as the player stood there.
+		 */
+		player_struct* pl=getPlayer();
+		pl->oldInPortal=pl->inPortal;
+		pl->inPortal=false;
+
 		checkPortalPlayerWarp(&portal1);
 		checkPortalPlayerWarp(&portal2);
 	}

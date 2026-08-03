@@ -229,6 +229,118 @@ static void test_null_portals_are_tolerated(void)
 	TEST_ASSERT_TRUE(portalToPortalIntersection(NULL, NULL));
 }
 
+/* --- standing in a portal ------------------------------------------------ */
+
+/*
+ * player_struct::inPortal and ::oldInPortal are an edge detector: updatePlayer
+ * plays the enter sound on a false-to-true and the exit sound on a
+ * true-to-false. So the pair has to be stable while the player stands still,
+ * or the sound retriggers every frame.
+ *
+ * That is exactly what happened. isPointInPortal() tests only the two in-plane
+ * axes, so it answers true for the whole column running through a portal, not
+ * just its mouth - and with two portals facing each other, standing in one puts
+ * the player inside the other's column too. Both per-portal checks then wrote
+ * the same pair of flags, and the second read the first one's answer as though
+ * it were the previous frame's.
+ */
+
+static player_struct* thePlayer(void) { return getPlayer(); }
+
+/* Portals facing each other down the z axis, which is what a test chamber is
+ * usually built out of. */
+static void faceEachOther(int32 separation)
+{
+	place(&portal1, vect(0, 0, 0),          vect(0, 0,  inttof32(1)), vect(inttof32(1), 0, 0));
+	place(&portal2, vect(0, 0, separation), vect(0, 0, -inttof32(1)), vect(inttof32(1), 0, 0));
+	portal1.targetPortal = &portal2;
+	portal2.targetPortal = &portal1;
+}
+
+/* Runs the portal update for a while and counts how often the enter/exit edge
+ * test in updatePlayer would have fired. */
+static int soundTriggersOver(int frames)
+{
+	player_struct* pl = thePlayer();
+	int triggers = 0;
+
+	for(int i=0;i<frames;i++)
+	{
+		updatePortals();
+		if(pl->inPortal != pl->oldInPortal)triggers++;
+	}
+	return triggers;
+}
+
+static void test_standing_still_in_a_portal_triggers_the_sound_once(void)
+{
+	faceEachOther(inttof32(4));
+
+	/* Just inside portal1's mouth, and therefore also inside portal2's column.
+	 * Slightly in front of the plane so the warp test does not fire. */
+	thePlayer()->object->position = vect(0, 0, 50);
+
+	const int triggers = soundTriggersOver(60);
+
+	TEST_ASSERT_LESS_OR_EQUAL_INT_MESSAGE(1, triggers,
+		"the enter/exit sound retriggered while the player stood still");
+	TEST_ASSERT_TRUE_MESSAGE(thePlayer()->inPortal, "standing in a portal should read as being in one");
+}
+
+static void test_standing_still_in_the_far_portal_is_also_stable(void)
+{
+	/* The other way round, because the two checks run in a fixed order and
+	 * only one of them is last. */
+	faceEachOther(inttof32(4));
+	thePlayer()->object->position = vect(0, 0, inttof32(4)-50);
+
+	TEST_ASSERT_LESS_OR_EQUAL_INT_MESSAGE(1, soundTriggersOver(60),
+		"the enter/exit sound retriggered while the player stood still");
+	TEST_ASSERT_TRUE(thePlayer()->inPortal);
+}
+
+static void test_standing_in_the_column_but_not_the_portal_is_stable(void)
+{
+	/* Lined up with both portals but well clear of either mouth: in neither,
+	 * and it should stay that way silently. */
+	faceEachOther(inttof32(8));
+	thePlayer()->object->position = vect(0, 0, inttof32(4));
+
+	TEST_ASSERT_EQUAL_INT_MESSAGE(0, soundTriggersOver(60), "a sound fired while standing in open space");
+	TEST_ASSERT_FALSE(thePlayer()->inPortal);
+}
+
+static void test_stepping_into_a_portal_triggers_the_sound_once(void)
+{
+	/* The edge still has to work: the fix must not silence it. */
+	faceEachOther(inttof32(8));
+
+	thePlayer()->object->position = vect(0, 0, inttof32(4));
+	soundTriggersOver(4);
+	TEST_ASSERT_FALSE(thePlayer()->inPortal);
+
+	thePlayer()->object->position = vect(0, 0, 50);
+	TEST_ASSERT_EQUAL_INT_MESSAGE(1, soundTriggersOver(1), "stepping into a portal should trigger the sound");
+	TEST_ASSERT_TRUE(thePlayer()->inPortal);
+
+	TEST_ASSERT_EQUAL_INT_MESSAGE(0, soundTriggersOver(30), "and then stop");
+}
+
+static void test_stepping_out_of_a_portal_triggers_the_sound_once(void)
+{
+	faceEachOther(inttof32(8));
+
+	thePlayer()->object->position = vect(0, 0, 50);
+	soundTriggersOver(4);
+	TEST_ASSERT_TRUE(thePlayer()->inPortal);
+
+	thePlayer()->object->position = vect(0, 0, inttof32(4));
+	TEST_ASSERT_EQUAL_INT_MESSAGE(1, soundTriggersOver(1), "stepping out of a portal should trigger the sound");
+	TEST_ASSERT_FALSE(thePlayer()->inPortal);
+
+	TEST_ASSERT_EQUAL_INT_MESSAGE(0, soundTriggersOver(30), "and then stop");
+}
+
 int main(void)
 {
 	UNITY_BEGIN();
@@ -253,6 +365,12 @@ int main(void)
 
 	RUN_TEST(test_the_first_portal_of_a_pair_is_always_allowed);
 	RUN_TEST(test_null_portals_are_tolerated);
+
+	RUN_TEST(test_standing_still_in_a_portal_triggers_the_sound_once);
+	RUN_TEST(test_standing_still_in_the_far_portal_is_also_stable);
+	RUN_TEST(test_standing_in_the_column_but_not_the_portal_is_stable);
+	RUN_TEST(test_stepping_into_a_portal_triggers_the_sound_once);
+	RUN_TEST(test_stepping_out_of_a_portal_triggers_the_sound_once);
 
 	return UNITY_END();
 }
