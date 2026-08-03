@@ -612,6 +612,16 @@ dictionary * iniparser_load(const char * ininame)
     while (fgets(line+last, ASCIILINESZ-last, in)!=NULL) {
         lineno++ ;
         len = (int)strlen(line)-1;
+        /* A line beginning with a NUL byte: fgets read something, strlen sees
+         * nothing, and len is -1. Everything below indexes line[len], so this
+         * used to read before the buffer - and worse, a stray backslash there
+         * set last=-1 and the next fgets wrote before it too. There is nothing
+         * to parse in such a line, so treat it as blank. */
+        if (len < 0) {
+            memset(line, 0, ASCIILINESZ+1);
+            last = 0 ;
+            continue ;
+        }
         /* Safety check against buffer overflows */
         if (line[len]!='\n') {
             fprintf(stderr,
@@ -624,15 +634,13 @@ dictionary * iniparser_load(const char * ininame)
             return NULL ;
         }
         /* Get rid of \n and spaces at end of line */
-        //this parser probably needs to be rewritten, len can end up negative
         while ((len>0) && ((line[len]=='\n') || (isspace((int)line[len]))))
         {
             line[len]=0 ;
             len-- ;
         }
 
-        /* Detect multi-line */
-        //if len is negative here, this is out of bounds
+        /* Detect multi-line. len is >= 0 here: the loop above stops at 0. */
         if (line[len]=='\\') {
             /* Multi-line value */
             last=len ;
@@ -756,6 +764,12 @@ dictionary * iniparser_loadBUFF(char* buffer)
         
         lineno++ ;
         len = (int)strlen(line)-1;
+        /* See the matching guard in iniparser_load(). */
+        if (len < 0) {
+            memset(line, 0, ASCIILINESZ+1);
+            last = 0 ;
+            continue ;
+        }
         /* Safety check against buffer overflows */
         if (line[len]!='\n') {
             printf(
@@ -768,15 +782,12 @@ dictionary * iniparser_loadBUFF(char* buffer)
             return NULL ;
         }
         /* Get rid of \n and spaces at end of line */
-
-        //this parser probably needs to be rewritten, len can end up negative
         while ((len>0) && ((line[len]=='\n') || (isspace((int)line[len]))))
         {
             line[len]=0;
             len-- ;
         }
-        /* Detect multi-line */
-        //if len is negative here, this is out of bounds
+        /* Detect multi-line. len is >= 0 here: the loop above stops at 0. */
         if (line[len]=='\\') {
             /* Multi-line value */
             last=len ;

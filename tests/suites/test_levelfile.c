@@ -780,6 +780,49 @@ static void test_a_line_longer_than_the_parser_allows_is_rejected(void)
 	TEST_ASSERT_EQUAL_STRING("", levelTitle);
 }
 
+static void test_a_line_starting_with_a_nul_byte_is_skipped(void)
+{
+	/*
+	 * The parser measured a line with strlen and then indexed line[len-1]
+	 * without checking that len was non-zero. A line beginning with a NUL -
+	 * which fgets happily reads, since it stops at a newline and not at a
+	 * NUL - made that index -1: a read before the buffer, and if the byte
+	 * there happened to be a backslash the parser set its continuation
+	 * offset to -1 and the next fgets *wrote* before the buffer too.
+	 *
+	 * ASan is what fails this if the guard goes away; the assertions below
+	 * only check that the rest of the file is still parsed around it.
+	 */
+	FILE* f = fopen(tempPath(), "wb");
+	TEST_ASSERT_NOT_NULL(f);
+	fputs("[info]\n", f);
+	fputc('\0', f);                    /* a line that strlen sees as empty */
+	fputs("\ntitle = Survived\n", f);
+	fclose(f);
+
+	readMapInfo((char*)tempPath());
+
+	TEST_ASSERT_EQUAL_STRING("Survived", levelTitle);
+}
+
+static void test_a_nul_byte_followed_by_a_backslash_is_skipped(void)
+{
+	/* The variant that used to corrupt rather than merely read out of
+	 * bounds: the byte before the buffer being a backslash set the
+	 * continuation offset negative. */
+	FILE* f = fopen(tempPath(), "wb");
+	TEST_ASSERT_NOT_NULL(f);
+	fputs("[info]\n", f);
+	fputc('\0', f);
+	fputs("\\\n", f);
+	fputs("title = Survived\n", f);
+	fclose(f);
+
+	readMapInfo((char*)tempPath());
+
+	TEST_ASSERT_EQUAL_STRING("Survived", levelTitle);
+}
+
 static void test_a_title_that_exactly_fills_the_buffer_is_kept(void)
 {
 	/* LEVELINFOCHARS-1 characters is the longest that needs no truncation.
@@ -858,6 +901,8 @@ int main(void)
 	RUN_TEST(test_an_overlong_title_is_truncated);
 	RUN_TEST(test_an_overlong_author_is_truncated);
 	RUN_TEST(test_a_line_longer_than_the_parser_allows_is_rejected);
+	RUN_TEST(test_a_line_starting_with_a_nul_byte_is_skipped);
+	RUN_TEST(test_a_nul_byte_followed_by_a_backslash_is_skipped);
 	RUN_TEST(test_a_title_that_exactly_fills_the_buffer_is_kept);
 	RUN_TEST(test_setting_level_info_twice_does_not_keep_the_old_text);
 	RUN_TEST(test_null_title_and_author_empty_the_banner);
