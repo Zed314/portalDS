@@ -5,8 +5,10 @@
  * Implements @ref OBB.h, and is where the ARM7 spends most of its time. The
  * approach follows Chris Hecker's rigid body dynamics articles: bodies carry
  * linear and angular momentum, contacts are resolved with instantaneous
- * impulses, and the timestep is bisected whenever a body ends up too deeply
- * penetrated so that collisions are applied close to the true time of impact.
+ * impulses, and the timestep was meant to be bisected whenever a body ends up
+ * too deeply penetrated, so that collisions are applied close to the true time
+ * of impact. That last part does not currently happen - see the note on the
+ * bisection branch in simulate().
  *
  * Reading order, roughly in the order the step executes:
  *  - simulate() drives one frame for one body: gravity, then the
@@ -176,8 +178,13 @@ void copyOBB(OBB_struct* o1, OBB_struct* o2)
 
 bool collideAABB(vect3D o1, vect3D s1, vect3D o2, vect3D s2)
 {
+	// <, not <=, on the z term: the other five comparisons treat boxes that
+	// exactly touch as overlapping and this one did not, so a pair meeting
+	// flush along z was reported as clear while the same pair meeting flush
+	// along x or y was not. Fixed point coordinates land on exact equality
+	// often enough for that to matter - bodies come to rest on a grid.
 	return !(o2.x>o1.x+s1.x || o2.y>o1.y+s1.y || o2.z>o1.z+s1.z
-		  || o2.x+s2.x<o1.x || o2.y+s2.y<o1.y || o2.z+s2.z<=o1.z);
+		  || o2.x+s2.x<o1.x || o2.y+s2.y<o1.y || o2.z+s2.z<o1.z);
 }
 
 vect3D projectPointAABB(vect3D size, vect3D p, vect3D* n)
@@ -196,6 +203,17 @@ vect3D projectPointAABB(vect3D size, vect3D p, vect3D* n)
 	if(p.z<-size.z){v.z=-size.z;n->z=-1;}
 	else if(p.z>size.z){v.z=size.z;n->z=1;}*/
 
+	// The chain is deliberate, and not the same thing as the commented out
+	// version above it. Chained, exactly one component of n is ever set, so n
+	// comes back as a single box face - which is what the caller needs, since
+	// it uses n directly as a contact normal without normalising it. The
+	// independent form would return a diagonal for a point outside on two
+	// axes, and an impulse along a non-unit normal is not a contact response.
+	//
+	// The cost is that v is then the closest point only along that one axis,
+	// so the penetration derived from it reads low for a corner. That is a
+	// bias in the response, not a wrong direction, which is the right way
+	// round for a solver to be inexact.
 	if(p.x<-size.x){v.x=-size.x;n->x=-1;}
 	else if(p.x>size.x){v.x=size.x;n->x=1;}
 	else if(p.y<-size.y){v.y=-size.y;n->y=-1;}
@@ -888,6 +906,13 @@ ARM_CODE static void simulate(OBB_struct* o, int32_t dt2)
 			copyOBB(o,&bkp);
 			integrate(o,(targetTime-currentTime));
 			checkOBBCollisions(o, false);
+			// maxPenetration is always 0, so this branch never runs and the
+			// timestep is never bisected. Its only two writers are the
+			// commented out block in collideOBBs and planeOBBContacts, whose
+			// sole call site in checkOBBCollisions is also commented out.
+			// Reviving it is a physics change - contacts would start being
+			// resolved near the time of impact rather than at the end of the
+			// step - so it wants play testing, not just uncommenting.
 			if(o->numContactPoints && o->maxPenetration>PENETRATIONTHRESHOLD)
 			{
 				targetTime=(currentTime+targetTime)/2;
@@ -982,7 +1007,11 @@ ARM_CODE bool pointInFrontOfPortal(portal_struct* p, vect3D pos, int32* z) //ass
 
 ARM_CODE void updateOBBPortals(OBB_struct* o, u8 id, bool init)
 {
-	if(!o&&id<2)
+	// || and >=, not && and <: as written this returned only for a NULL o with
+	// an in-range id, which is the one combination that needed no guard. A
+	// NULL o or an id past the two portal slots went straight through into
+	// o->oldPortal[id] and portal[id].
+	if(!o || id>=2)
         return;
 
 	int32_t z;
