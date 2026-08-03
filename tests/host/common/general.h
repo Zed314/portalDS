@@ -27,4 +27,47 @@
  * write to here, and a test run should not be printing anyway. */
 #define NOGBA(_fmt, _args...) ((void)0)
 
+/*
+ * Everything above is all compression.c has ever wanted, and it is what the
+ * ARM7 suites get. test_levelfile needs more: the level reader in
+ * game/room.c includes game_main.h, which needs the ARM9's real type headers
+ * to be present before any of the game headers will parse.
+ *
+ * Those headers are the genuine article, not stand-ins - the types the level
+ * format is made of have to be the ones the game actually uses, or the test
+ * would be reading a different file format. Only the hardware vocabulary
+ * underneath them is faked, up in nds.h.
+ *
+ * This is behind a flag rather than unconditional so that the suites which do
+ * not need it keep compiling against the same three-include shim they always
+ * have; tests/Makefile passes -DTEST_ARM9_FULL only where it is wanted.
+ */
+#ifdef TEST_ARM9_FULL
+
+#include <stdarg.h>
+
+#include "common/compress.h"
+#include "common/iniparser.h"
+#include "common/math.h"
+#include "common/files.h"
+#include "dual3D.h"
+#include "common/pcx.h"
+#include "common/textures.h"
+#include "common/md2.h"
+#include "common/font.h"
+#include "common/simplegui.h"
+#include "common/keyboard.h"
+#include "game/displaylist.h"
+#include "game/game_ex.h"
+#include "menu/menu_ex.h"
+#include "editor/editor_ex.h"
+#include "engine/state.h"
+#include "engine/memory.h"
+
+extern state_struct gameState;
+extern state_struct editorState;
+extern state_struct menuState;
+
+#endif /* TEST_ARM9_FULL */
+
 #endif

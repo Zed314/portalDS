@@ -43,6 +43,9 @@ What is covered
 | `test_collision` | `arm7/source/AAR.c` + the box-box narrow phase - contact generation and the broadphase grid |
 | `test_solver` | `arm7/source/OBB.c` - impulses, integration, sleeping, portal transport |
 | `test_platform` | `arm7/source/platform.c` - moving platforms, arrival, and carrying bodies |
+| `test_levelfile` | `arm9/source/game/room.c` + `levelinfo.c` - the entity section of a level file, and the level banner |
+| `test_room` | `arm9/source/game/room.c` - room geometry, and the rectangle sections of a level file |
+| `test_rectangle` | `arm9/source/editor/rectangle.c` - closest point, ray casts, the maximal rectangle finder and the lightmap atlas packer |
 
 These are the parts of the codebase that are pure logic: data in, data out,
 no hardware. That is also where the bugs are worst, because a wrong answer in
@@ -71,6 +74,51 @@ fixed point impulse solver has no closed form to compare against:
 - a body left standing on a rising platform is still standing on it two
   hundred steps later, having gone up with it.
 
+`test_levelfile` and `test_room` are the odd ones out, and assert two
+different things.
+
+The first is that the level reader does not believe the file. Levels are
+downloaded from the project's webpage, so a `.map` and its sidecar `.ini` are
+the only data in the game the player did not produce - every count, offset and
+string in them is hostile until checked. The suites feed the reader files no
+editor would write (a count of 65535 entities, a title a kilobyte long, a
+section that stops mid-record) and lean on the sanitizers to catch what an
+assertion cannot: a write one element past a fixed table looks like a clean
+pass unless something is watching the bounds. See the comment at the top of
+`test_levelfile` for which sanitizer catches which regression.
+
+The second is that the reader and the writer still agree about the format.
+`writeEntity()` in `editor/io.c` and `readEntity()` in `game/room.c` are two
+halves of one positional, self-describing-nothing format, and the comment at
+the top of `room.c` warns that adding a field to one without the other
+"silently corrupts every entity after it". So `test_levelfile` writes one
+record of every entity type in sequence, followed by a light at a position
+nothing else uses, and checks that light still comes out where it was put -
+if any record's size drifts, the stream desynchronises and the sentinel
+arrives as something else. Adding an entity type means adding a case there.
+
+`test_rectangle` is the easiest of the ARM9 suites to have written and the
+last one anybody got to: `editor/rectangle.c` needs nothing from the game but
+`malloc`. Despite the file living under `editor/`, two thirds of it runs every
+frame - `getClosestPointRectangle` is what the player's collision resolves
+against, and `collideLineConvertedRectangle` is what both guns aim with.
+
+The packer is tested by property rather than by golden positions, because a
+bin packer has no single right answer: any placement that fits is correct.
+What is asserted is what would actually be wrong - a patch outside the atlas,
+or two patches sharing a pixel. Overlap is the one that matters, because it
+does not crash; it silently lights two surfaces from the same pixels. The
+maximal rectangle finder gets the same treatment: rather than pinning which
+rectangle it picks, the test alternates find-and-fill over a shape and checks
+it consumes every set cell and never claims one that was not set.
+
+Both suites also pin a few things that are wrong rather than right, in the
+same spirit as `test_platform`'s overshoot: an unknown entity tag
+desynchronises the stream rather than being rejected, the rectangle counts
+have no upper bound the way the entity count now does, and `roomOriginSize`
+seeds its accumulators at 8192 and 0 instead of at the first rectangle. Each
+is commented with why it is pinned instead of fixed.
+
 Where a property cannot hold exactly, the inaccuracy is pinned rather than
 papered over with a loose tolerance: `test_platform` asserts that a platform
 overshoots its destination by exactly 512 units, because `dotProduct()`
@@ -95,7 +143,13 @@ be worse than not trying:
   flows through them is asserted with a tolerance, not an exact value.
 - **The game and editor logic** - large stateful modules wired into globals
   and hardware. Testable in principle, but only after the state they depend on
-  is untangled from the hardware they depend on.
+  is untangled from the hardware they depend on. `game/room.c` is the one
+  exception so far, and it is instructive about the cost: the reader itself
+  touches no hardware, but it ends every entity case by calling into a pool
+  that does, so it took `tests/host/level_fixture.c` to stand those pools up.
+  `game/game.c` is the rule rather than the exception - it is the renderer and
+  the state driver, and there is no version of this that reaches it. The level
+  title and author moved out to `game/levelinfo.c` for exactly that reason.
 - **The FIFO protocol** - `PI7.c` and `PI9.c` are the boundary between the two
   CPUs and genuinely need both of them, so they are covered by a separate test
   ROM run under an emulator instead. See `tests/rom/README.md`.
@@ -107,16 +161,36 @@ How the host build works
 
 `tests/host/` contains just enough to let real game sources compile natively:
 
-- `nds.h` stands in for libnds. The sources under test want two things from
-  it - the legacy integer typedefs and the section attributes - and neither
-  needs hardware.
+- `nds.h` stands in for libnds. The ARM7 sources want two things from it - the
+  legacy integer typedefs and the section attributes - and neither needs
+  hardware. Behind `-DTEST_ARM9_FULL` it also supplies the ARM9's vocabulary:
+  a few graphics and sound types the ARM9 headers name in prototypes, and the
+  20.12 arithmetic, which is real rather than stubbed so that anything
+  computing a coordinate computes the right one.
 - `common/general.h` stands in for the ARM9 umbrella header, which otherwise
-  drags in the entire ARM9.
+  drags in the entire ARM9. Behind the same flag it pulls in the ARM9's real
+  type headers, because the types the level format is made of have to be the
+  ones the game actually uses.
+- `level_fixture.[ch]` owns the entity pools `game/room.c` builds into, and
+  provides `levelFixtureReset()`. Its stubs record what they were handed, in
+  order, so a test can ask what a file actually produced rather than only
+  whether the run survived - that log is what makes the entity format
+  testable. `addRoomRectangle` is the exception and is a real list append,
+  because the room geometry helpers walk the list it builds.
 - `arm_primitives.c` supplies the two ARM assembly routines described above.
 - `f32_test.h` holds the fixed point assertion helpers and the three
   tolerances (`TOL_BIT`, `TOL_FEW`, `TOL_COARSE`) the suites assert with.
 - `physics_fixture.[ch]` owns the globals the FIFO layer would normally hold
   and provides `physicsReset()`, which every physics test calls from `setUp()`.
+
+Building the ARM9 sources natively has already paid for itself once. UBSan
+flagged a misaligned pointer store in the atlas packer, which turned out to be
+`common/pcx.h` ending its packed section with `#pragma pack(4)` rather than
+`#pragma pack(pop)` - so every header included after it, which is most of the
+ARM9, was packed to four bytes. Invisible on the DS, where four is both the
+default and the widest alignment anything needs; undefined behaviour on a host
+with eight byte pointers. The fix is push/pop, and the ROM it produces is byte
+identical.
 
 `tests/Makefile` puts `tests/host` first on the include path so these shadow
 the real headers, and deliberately keeps `arm7/include` off the include path

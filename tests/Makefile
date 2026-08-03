@@ -47,6 +47,20 @@ BASEFLAGS := -std=gnu11 -g -O1 -fwrapv $(SANFLAGS)
 GAMEFLAGS := $(BASEFLAGS) -Wall
 TESTFLAGS := $(BASEFLAGS) -Wall -Wextra
 
+# The ARM9 sources need two more turned off, and both are worth knowing about
+# rather than only silencing:
+#  - unused-result: the level reader ignores the return of nearly every fread,
+#    so a truncated file leaves it decoding whatever was already in the
+#    destination. That is real and unfixed; readEntities() is the one place it
+#    is checked, because a bogus entity count was doing damage past the end of
+#    a table rather than merely producing a nonsense entity. Fixing the rest is
+#    a bigger change than the one these tests were written for.
+#  - restrict: iniparser_load carves line, section, key, tmp and val out of one
+#    allocation and then sprintf()s two of them into a third. gcc cannot see
+#    that the slices do not overlap. Also real, also upstream's.
+# Without these, 25 lines of warning bury the test results on every run.
+GAME9FLAGS := $(GAMEFLAGS) -Wno-unused-result -Wno-restrict
+
 # Include path notes:
 #  - tests/host must come first so its nds.h and common/general.h shadow the
 #    toolchain and ARM9 originals;
@@ -56,15 +70,22 @@ TESTFLAGS := $(BASEFLAGS) -Wall -Wextra
 #    relative path instead.
 I_HOST    := -I$(TESTDIR)host
 I_UNITY   := -I$(TESTDIR)unity
-I_ARM7    := -I$(ROOT)/arm7/include -I$(ROOT)/common/include
-I_ARM9    := -I$(ROOT)/arm9/include
+I_COMMON  := -I$(ROOT)/common/include
+I_ARM7    := -I$(ROOT)/arm7/include $(I_COMMON)
+I_ARM9    := -I$(ROOT)/arm9/include $(I_COMMON)
 
 # The real ARM7 build gets these from ds_arm7.specs. ARM7 in particular
 # selects a different computePortalPlane() in common/include/PIC.h, so without
 # it the tests would be exercising the ARM9's version of the portal maths.
 D_ARM7    := -DARM7 -D__NDS__
 
-SUITES    := fixed_math matrix compression obb collision solver platform
+# The ARM9 counterpart, for test_levelfile only. It switches on the rest of
+# tests/host/common/general.h - the real ARM9 type headers, which the level
+# format is described in - and the ARM9 half of tests/host/nds.h. It must NOT
+# reach the ARM7 build: arm7/include/math.h defines inttof32 and friends too.
+D_ARM9    := -DTEST_ARM9_FULL
+
+SUITES    := fixed_math matrix compression obb collision solver platform levelfile room rectangle
 BINS      := $(addprefix $(BUILD)/test_,$(SUITES))
 
 .PHONY: all build test clean
@@ -100,6 +121,9 @@ $(BUILD)/arm_primitives.o: $(TESTDIR)host/arm_primitives.c $(THISFILE) | $(BUILD
 $(BUILD)/physics_fixture.o: $(TESTDIR)host/physics_fixture.c $(THISFILE) | $(BUILD)
 	$(CC) $(TESTFLAGS) $(D_ARM7) $(I_HOST) $(I_UNITY) -c $< -o $@
 
+$(BUILD)/level_fixture.o: $(TESTDIR)host/level_fixture.c $(THISFILE) | $(BUILD)
+	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_ARM9) $(I_UNITY) -c $< -o $@
+
 # --- game sources under test ---------------------------------------------
 
 # Every ARM7 source is compiled the same way, so one rule covers them all:
@@ -109,6 +133,19 @@ $(BUILD)/arm7_%.o: $(ROOT)/arm7/source/%.c $(THISFILE) | $(BUILD)
 
 $(BUILD)/compression.o: $(ROOT)/arm9/source/compression.c $(THISFILE) | $(BUILD)
 	$(CC) $(GAMEFLAGS) $(I_HOST) $(I_ARM9) -c $< -o $@
+
+# The ARM9 sources test_levelfile puts under test. Unlike compression.c these
+# need the full ARM9 umbrella, hence D_ARM9. build/arm9_room.o comes from
+# arm9/source/game/room.c; the level format types live under game/ and the
+# parsers they lean on at the top of arm9/source/.
+$(BUILD)/arm9_%.o: $(ROOT)/arm9/source/game/%.c $(THISFILE) | $(BUILD)
+	$(CC) $(GAME9FLAGS) $(D_ARM9) $(I_HOST) $(I_ARM9) -c $< -o $@
+
+$(BUILD)/arm9_%.o: $(ROOT)/arm9/source/editor/%.c $(THISFILE) | $(BUILD)
+	$(CC) $(GAME9FLAGS) $(D_ARM9) $(I_HOST) $(I_ARM9) -c $< -o $@
+
+$(BUILD)/arm9_%.o: $(ROOT)/arm9/source/%.c $(THISFILE) | $(BUILD)
+	$(CC) $(GAME9FLAGS) $(D_ARM9) $(I_HOST) $(I_ARM9) -c $< -o $@
 
 # --- suites ---------------------------------------------------------------
 
@@ -120,6 +157,15 @@ $(BUILD)/test_%.o: $(TESTDIR)suites/test_%.c $(THISFILE) | $(BUILD)
 
 $(BUILD)/test_compression.o: $(TESTDIR)suites/test_compression.c $(THISFILE) | $(BUILD)
 	$(CC) $(TESTFLAGS) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
+
+$(BUILD)/test_levelfile.o: $(TESTDIR)suites/test_levelfile.c $(THISFILE) | $(BUILD)
+	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
+
+$(BUILD)/test_room.o: $(TESTDIR)suites/test_room.c $(THISFILE) | $(BUILD)
+	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
+
+$(BUILD)/test_rectangle.o: $(TESTDIR)suites/test_rectangle.c $(THISFILE) | $(BUILD)
+	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
 
 MATHOBJS  := $(BUILD)/unity.o $(BUILD)/arm_primitives.o $(BUILD)/arm7_math.o
 
@@ -149,4 +195,25 @@ $(BUILD)/test_solver: $(BUILD)/test_solver.o $(PHYSOBJS)
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm
 
 $(BUILD)/test_platform: $(BUILD)/test_platform.o $(PHYSOBJS)
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+# The level reader, the banner it fills in, and the real ini parser behind
+# both - the point of the suite is that the whole path from file to buffer is
+# the shipping one. level_fixture.o supplies the entity pools it calls into.
+LEVELOBJS := $(BUILD)/unity.o $(BUILD)/level_fixture.o \
+             $(BUILD)/arm9_room.o $(BUILD)/arm9_levelinfo.o \
+             $(BUILD)/arm9_iniparser.o $(BUILD)/arm9_dictionary.o
+
+$(BUILD)/test_levelfile: $(BUILD)/test_levelfile.o $(LEVELOBJS)
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+$(BUILD)/test_room: $(BUILD)/test_room.o $(LEVELOBJS)
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+# editor/rectangle.c needs nothing from the game but malloc, so this one links
+# against the fixture only for the room types its headers name.
+$(BUILD)/test_rectangle: $(BUILD)/test_rectangle.o $(BUILD)/unity.o \
+                         $(BUILD)/level_fixture.o $(BUILD)/arm9_rectangle.o \
+                         $(BUILD)/arm9_room.o $(BUILD)/arm9_levelinfo.o \
+                         $(BUILD)/arm9_iniparser.o $(BUILD)/arm9_dictionary.o
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm
