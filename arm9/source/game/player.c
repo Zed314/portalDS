@@ -38,7 +38,7 @@ static u16* bottomScreenPAL;
 touchPosition touchCurrent, touchOld;
 
 /** Sound effects for portals shots. */
-SFX_struct *gunSFX1, *gunSFX2;
+SFX_struct *gunSFX1, *gunSFX2, *gunRefusedSFX;
 /** Sound effect when entering portal */
 SFX_struct *portalEnterSFX[2];
 /** Sound effect when leaving portal */
@@ -146,6 +146,7 @@ void initPlayer(player_struct* p)
 	//SFX
 	gunSFX1=createSFX("portalgun_orange.raw", SoundFormat_16Bit);
 	gunSFX2=createSFX("portalgun_blue.raw", SoundFormat_16Bit);
+	gunRefusedSFX=createSFX("portalgun_refused.raw", SoundFormat_16Bit);
 
 	portalEnterSFX[0]=createSFX("portal_enter1.raw", SoundFormat_16Bit);
 	portalEnterSFX[1]=createSFX("portal_enter2.raw", SoundFormat_16Bit);
@@ -261,7 +262,12 @@ s16 X=-46;
 static void refuseShot(player_struct* p)
 {
 	if(!p)return;
+
+	//Restarting the sound as well as the shake. playSFX takes the next free
+	//hardware channel, so retriggering overlaps rather than cutting off, which
+	//is the right way round for something this short and this quiet.
 	p->refusedCNT=GUNREFUSEDFRAMES;
+	playSFX(gunRefusedSFX);
 }
 
 /**

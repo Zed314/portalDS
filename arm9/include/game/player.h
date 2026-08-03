@@ -71,6 +71,7 @@ typedef struct
 extern s16 gravityGunTarget;   /**< Id of the box currently held by the gravity gun, or -1. */
 extern bool idle;              /**< True when the player has not moved recently; drives the idle animation. */
 extern SFX_struct *gunSFX1, *gunSFX2; /**< Firing sounds for the two portal colours. */
+extern SFX_struct *gunRefusedSFX;     /**< Played instead of nothing when a shot places no portal. */
 extern bool currentPortalColor; /**< Colour of the portal the next shot places. */ //true=orange
 
 /** @brief Returns the room the player is currently in. */
