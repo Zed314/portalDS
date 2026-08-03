@@ -32,4 +32,12 @@ void initMenuButtons(void);
  **/
 void setupHomeMenuPage(void);
 
+/**
+ * @brief Draws the credits, if that page is up.
+ *
+ * Called from menuFrame() for the screen that is not showing the buttons, in
+ * place of the logo. Does nothing on any other page.
+ */
+void drawMenuCredits(void);
+
 #endif

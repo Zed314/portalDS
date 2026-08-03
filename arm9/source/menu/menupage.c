@@ -35,6 +35,9 @@ typedef struct
 
 static void setupMenuPage(menuButton_struct* mp, u8 n);
 
+static void mainMenuCreditsButtonFunction(sguiButton_struct* b);
+static void creditsMenuBackButtonFunction(sguiButton_struct* b);
+
 static void startMenuPlayButtonFunction(sguiButton_struct* b);
 static void mainMenuCreateButtonFunction(sguiButton_struct* b);
 static void mainMenuPlayButtonFunction(sguiButton_struct* b);
@@ -59,14 +62,20 @@ static void loadLevelMenuBackButtonFunction(sguiButton_struct* b);
 static void freeFileList(char** list, int length);
 static int listFiles(char* path, char** list);
 
+static bool creditsShown=false;
+
 static char **testList=NULL;
 static int testListCnt, testListCnt1;
 static screenList_struct testScreenList;
 
 static menuButton_struct startMenuPage[]={(menuButton_struct){"START", (buttonTargetFunction)startMenuPlayButtonFunction}};
 static u8 startMenuPageLength=arrayLength(startMenuPage);
-static menuButton_struct mainMenuPage[]={(menuButton_struct){"Options", NULL}, (menuButton_struct){"Create", (buttonTargetFunction)mainMenuCreateButtonFunction}, (menuButton_struct){"Play", (buttonTargetFunction)mainMenuPlayButtonFunction}};
+//setupMenuPage() stacks these from the bottom of the screen upwards, so index
+//zero is the lowest button. Credits therefore goes first to sit under Options.
+static menuButton_struct mainMenuPage[]={(menuButton_struct){"Credits", (buttonTargetFunction)mainMenuCreditsButtonFunction}, (menuButton_struct){"Options", NULL}, (menuButton_struct){"Create", (buttonTargetFunction)mainMenuCreateButtonFunction}, (menuButton_struct){"Play", (buttonTargetFunction)mainMenuPlayButtonFunction}};
 static u8 mainMenuPageLength=arrayLength(mainMenuPage);
+static menuButton_struct creditsMenuPage[]={(menuButton_struct){"Back", (buttonTargetFunction)creditsMenuBackButtonFunction}};
+static u8 creditsMenuPageLength=arrayLength(creditsMenuPage);
 static menuButton_struct playMenuPage[]={(menuButton_struct){"Back", (buttonTargetFunction)playMenuBackButtonFunction}, (menuButton_struct){"Select Level", playMenuLoadLevelButtonFunction}, (menuButton_struct){"Campaign", playMenuCampaignButtonFunction}};
 static u8 playMenuPageLength=arrayLength(playMenuPage);
 static menuButton_struct createMenuPage[]={(menuButton_struct){"Back", (buttonTargetFunction)createMenuBackButtonFunction}, (menuButton_struct){"Load Level", createMenuLoadLevelButtonFunction}, (menuButton_struct){"New level", (buttonTargetFunction)createMenuNewLevelButtonFunction}};
@@ -91,6 +100,10 @@ void setupHomeMenuPage(void)
 static void setupMenuPage(menuButton_struct* mp, u8 n)
 {
 	if(!mp || !n)return;
+
+	//Any page change leaves the credits, so the flag is cleared here rather
+	//than in every callback that could navigate away from them.
+	creditsShown=false;
 
 	cleanUpSimpleButtons();
 
@@ -117,6 +130,100 @@ static void mainMenuPlayButtonFunction(sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[0],&cameraStates[1],48);
 	setupMenuPage(playMenuPage, playMenuPageLength);
+}
+
+/*
+ * The credits screen.
+ *
+ * The lines are drawn on whichever screen is not showing the buttons, so the
+ * text gets a whole screen and the Back button stays reachable underneath.
+ * That screen otherwise shows the logo, which drawMenuCredits() stands in for
+ * while the page is up - see menuFrame().
+ *
+ * At this size a character is eight pixels wide, so a line has room for about
+ * thirty of them. Keeping to that is the only constraint.
+ */
+typedef struct
+{
+	const char* text;
+	bool centered; /**< false left aligns it, which is what keeps columns in line. */
+}creditsLine_struct;
+
+static const creditsLine_struct creditsLines[]={
+	{"p o r t a l D S", true},
+	{"", true},
+	{"a homebrew Portal for the DS", true},
+	{"", true},
+	{"code            smealum", false},
+	{"graphics        Lobo", false},
+	{"", true},
+	{"based on Portal, by Valve", true},
+	{"", true},
+	{"md2 and pcx     David HENRY", false},
+	{"ini parser      N. Devillard", false},
+	{"rle codec       GRIT", false},
+	{"toolchain       BlocksDS", false},
+};
+#define CREDITSLINES arrayLength(creditsLines)
+
+#define CREDITSTOP (28)      /**< Pixels from the top of the screen to the first line. */
+#define CREDITSSPACING (12)  /**< Pixels between one line and the next. */
+#define CREDITSMARGIN (16)   /**< Left edge of the two column rows; centres the widest of them. */
+
+/**
+ * @brief Draws one line of the credits.
+ *
+ * Centring every line independently would put each two column row at its own
+ * x, so neither the labels nor the values would line up with the row above.
+ * The rows are left aligned at a shared margin instead, and only the headings
+ * are centred - which is the same arithmetic game.c uses for level titles: a
+ * character is scale*8 pixels wide, so half a line is scale*4 of them.
+ */
+static void drawCreditsLine(const creditsLine_struct* line, int32 scale, int y)
+{
+	const int l=strlen(line->text);
+	if(!l)return;
+
+	const int32 x=line->centered?(inttof32(128)-(l*scale)*4):inttof32(CREDITSMARGIN);
+
+	drawString((char*)line->text, RGB15(31,31,31), scale, x, inttof32(y));
+}
+
+void drawMenuCredits(void)
+{
+	if(!creditsShown)return;
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+		glLoadIdentity();
+		glOrthof32(inttof32(0), inttof32(255), inttof32(191), inttof32(0), -inttof32(1), inttof32(1));
+
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+			glLoadIdentity();
+
+			unsigned i;
+			for(i=0;i<CREDITSLINES;i++)
+			{
+				//the first line is the title, drawn larger
+				const int32 scale=i?inttof32(1):(inttof32(3)/2);
+				drawCreditsLine(&creditsLines[i], scale, CREDITSTOP+i*CREDITSSPACING);
+			}
+
+		glPopMatrix(1);
+		glMatrixMode(GL_PROJECTION);
+	glPopMatrix(1);
+}
+
+static void mainMenuCreditsButtonFunction(sguiButton_struct* b)
+{
+	setupMenuPage(creditsMenuPage, creditsMenuPageLength);
+	creditsShown=true; //after setupMenuPage, which clears it
+}
+
+static void creditsMenuBackButtonFunction(sguiButton_struct* b)
+{
+	setupMenuPage(mainMenuPage, mainMenuPageLength);
 }
 
 static void mainMenuCreateButtonFunction(sguiButton_struct* b)

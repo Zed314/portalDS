@@ -172,6 +172,10 @@ void menuFrame(void)
 	}
 	else
 	{
+		//The credits take over this screen while their page is up; the buttons,
+		//including Back, stay on the other one.
+		drawMenuCredits();
+
 		if(logoAlpha)
 		{
 			drawLogo();
