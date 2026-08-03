@@ -87,8 +87,10 @@ be worse than not trying:
   and hardware. Testable in principle, but only after the state they depend on
   is untangled from the hardware they depend on.
 - **The FIFO protocol** - `PI7.c` and `PI9.c` are the boundary between the two
-  CPUs and genuinely need both of them. `tests/host/physics_fixture.c` stands
-  in for the state `PI7.c` owns, so the physics can be tested without it.
+  CPUs and genuinely need both of them, so they are covered by a separate test
+  ROM run under an emulator instead. See `tests/rom/README.md`.
+  `tests/host/physics_fixture.c` stands in for the state `PI7.c` owns, so the
+  physics can still be tested here without it.
 
 How the host build works
 ------------------------

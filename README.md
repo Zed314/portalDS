@@ -48,6 +48,15 @@ toolchain does not carry. It pulls a plain Ubuntu image instead; set
 See `tests/README.md` for what is covered, what is not (anything touching the
 hardware, and the hand written ARM assembly), and how to add a suite.
 
+The one thing host tests cannot reach is the contract between the two CPUs, so
+that has its own test ROM - the real `arm7.elf` paired with a test ARM9 driver,
+run under an emulator:
+
+    tests/rom/run.sh
+
+It needs only Docker, takes a couple of minutes, and covers the FIFO command
+encoding and the replies coming back. See `tests/rom/README.md`.
+
 Documentation
 -------------
 

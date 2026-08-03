@@ -51,6 +51,20 @@ jobs:
       - name: make test
         run: make test
 
+  # The FIFO round trip tests: a second ROM pairing the real arm7.elf with a
+  # test ARM9 driver, run under DeSmuME. This is the only coverage of the
+  # contract between the two CPUs, and the only test here that needs an
+  # emulator - hence its own job, and a longer timeout than the rest.
+  fifo-tests:
+    name: FIFO round trip tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and run the test ROM
+        run: tests/rom/run.sh
+
   # The self-contained build path from the README: docker build --output.
   # Compiles the same sources again, but it is the only thing keeping the
   # Dockerfile honest.
