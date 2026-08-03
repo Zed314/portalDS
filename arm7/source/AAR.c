@@ -330,12 +330,15 @@ ARM_CODE void OBBAARContacts(AAR_struct* a, OBB_struct* o, bool port)
                 if(!b)
                 {
                     //p1=addVect(p1,vectMult(vv,k1));
-                    o->contactPoints[o->numContactPoints].point=p1;
-                    o->contactPoints[o->numContactPoints].type=PLANECOLLISION;
-                    o->contactPoints[o->numContactPoints].normal=a->normal;
-                    o->contactPoints[o->numContactPoints].penetration=0;
-                    o->contactPoints[o->numContactPoints].target=NULL;
-                    o->numContactPoints++;
+                    contactPoint_struct* cp=nextContactPoint(o);
+                    if(cp)
+                    {
+                        cp->point=p1;
+                        cp->type=PLANECOLLISION;
+                        cp->normal=a->normal;
+                        cp->penetration=0;
+                        cp->target=NULL;
+                    }
                 }
             }
             if(b2)
@@ -349,12 +352,15 @@ ARM_CODE void OBBAARContacts(AAR_struct* a, OBB_struct* o, bool port)
                 if(!b)
                 {
                     //p2=addVect(p2,vectMult(vv,k2));
-                    o->contactPoints[o->numContactPoints].point=p2;
-                    o->contactPoints[o->numContactPoints].type=PLANECOLLISION;
-                    o->contactPoints[o->numContactPoints].normal=a->normal;
-                    o->contactPoints[o->numContactPoints].penetration=0;
-                    o->contactPoints[o->numContactPoints].target=NULL;
-                    o->numContactPoints++;
+                    contactPoint_struct* cp=nextContactPoint(o);
+                    if(cp)
+                    {
+                        cp->point=p2;
+                        cp->type=PLANECOLLISION;
+                        cp->normal=a->normal;
+                        cp->penetration=0;
+                        cp->target=NULL;
+                    }
                 }
             }
         }
@@ -403,12 +409,15 @@ ARM_CODE bool __attribute__((noinline)) AAROBBContacts(AAR_struct* a, OBB_struct
                     }
                     if(!b)
                     {
-                        o->contactPoints[o->numContactPoints].point=p;
-                        o->contactPoints[o->numContactPoints].type=AARCOLLISION;
-                        o->contactPoints[o->numContactPoints].normal=a->normal;
-                        o->contactPoints[o->numContactPoints].penetration=0;
-                        o->contactPoints[o->numContactPoints].target=NULL;
-                        o->numContactPoints++;
+                        contactPoint_struct* cp=nextContactPoint(o);
+                        if(cp)
+                        {
+                            cp->point=p;
+                            cp->type=AARCOLLISION;
+                            cp->normal=a->normal;
+                            cp->penetration=0;
+                            cp->target=NULL;
+                        }
                     }
                 }
             }
@@ -437,12 +446,15 @@ ARM_CODE bool __attribute__((noinline)) AAROBBContacts(AAR_struct* a, OBB_struct
                     }
                     if(!b)
                     {
-                        o->contactPoints[o->numContactPoints].point=p;
-                        o->contactPoints[o->numContactPoints].type=AARCOLLISION;
-                        o->contactPoints[o->numContactPoints].normal=a->normal;
-                        o->contactPoints[o->numContactPoints].penetration=0;
-                        o->contactPoints[o->numContactPoints].target=NULL;
-                        o->numContactPoints++;
+                        contactPoint_struct* cp=nextContactPoint(o);
+                        if(cp)
+                        {
+                            cp->point=p;
+                            cp->type=AARCOLLISION;
+                            cp->normal=a->normal;
+                            cp->penetration=0;
+                            cp->target=NULL;
+                        }
                     }
                 }
             }
@@ -470,12 +482,15 @@ ARM_CODE bool __attribute__((noinline)) AAROBBContacts(AAR_struct* a, OBB_struct
                     }
                     if(!b)
                     {
-                        o->contactPoints[o->numContactPoints].point=p;
-                        o->contactPoints[o->numContactPoints].type=AARCOLLISION;
-                        o->contactPoints[o->numContactPoints].normal=a->normal;
-                        o->contactPoints[o->numContactPoints].penetration=0;
-                        o->contactPoints[o->numContactPoints].target=NULL;
-                        o->numContactPoints++;
+                        contactPoint_struct* cp=nextContactPoint(o);
+                        if(cp)
+                        {
+                            cp->point=p;
+                            cp->type=AARCOLLISION;
+                            cp->normal=a->normal;
+                            cp->penetration=0;
+                            cp->target=NULL;
+                        }
                     }
                 }
             }

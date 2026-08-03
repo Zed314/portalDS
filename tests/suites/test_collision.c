@@ -428,6 +428,110 @@ static void test_plane_contacts_are_not_generated_for_a_clear_box(void)
     TEST_ASSERT_EQUAL_UINT16(0, o->maxPenetration);
 }
 
+/* --- the shared contact buffer -------------------------------------------- */
+
+/*
+ * Every body's contacts live in one global array of MAXCONTACTPOINTS entries,
+ * and nothing used to check the count against it. A heap of bodies on a finely
+ * tiled floor is enough to run off the end: measured, the box-box narrow phase
+ * alone wants 29 contacts for eight cubes in a pile, and the static world adds
+ * another eight on top.
+ *
+ * ASan is what fails these if the bound goes away - it reports a
+ * global-buffer-overflow just past contactPoints - so the assertions here are
+ * only the visible half of what they check.
+ */
+
+/* A floor of separate tiles, so one body can straddle several at once. */
+static void tiledFloor(int n, int32 tile)
+{
+    u16 id = 0;
+    const int32 origin = -(n * tile) / 2;
+    for (int x = 0; x < n; x++)
+        for (int z = 0; z < n; z++)
+            createAAR(id++, vect(origin + x * tile, 0, origin + z * tile),
+                      vect(tile, 0, tile), vect(0, ONE, 0));
+    generateGrid(NULL);
+}
+
+static u8 peakContactsOverFrames(int frames)
+{
+    u8 peak = 0;
+    for (int f = 0; f < frames; f++)
+    {
+        updateOBBs();
+        for (int i = 0; i < NUMOBJECTS; i++)
+        {
+            if (!objects[i].used)
+                continue;
+            TEST_ASSERT_LESS_OR_EQUAL_UINT8_MESSAGE(MAXCONTACTPOINTS, objects[i].numContactPoints,
+                                                    "a body reported more contacts than the buffer holds");
+            if (objects[i].numContactPoints > peak)
+                peak = objects[i].numContactPoints;
+        }
+    }
+    return peak;
+}
+
+static void test_a_heap_of_bodies_stays_inside_the_contact_buffer(void)
+{
+    tiledFloor(10, inttof32(1));
+    for (int i = 0; i < NUMOBJECTS; i++)
+        createOBB(i, TEST_CUBE_SIZE,
+                  vect((i % 3) * 128, inttof32(2) + (i / 3) * 128, (i % 2) * 128),
+                  TEST_CUBE_MASS, inttof32(1), 0);
+
+    /* This scene is what reproduced the overflow, so it has to be one that
+     * really does saturate the buffer - otherwise it stops testing anything. */
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(MAXCONTACTPOINTS, peakContactsOverFrames(400),
+                                    "the scene no longer saturates the buffer, so it no longer tests the bound");
+}
+
+static void test_an_ordinary_scene_stays_well_inside_the_buffer(void)
+{
+    /* One cube on a seam between tiles - the common case. Comfortably under
+     * the cap, so nothing is being dropped in normal play. */
+    tiledFloor(6, inttof32(2));
+    createOBB(0, TEST_CUBE_SIZE, vect(0, inttof32(2), 0), TEST_CUBE_MASS, inttof32(1), 0);
+
+    TEST_ASSERT_LESS_THAN_UINT8(MAXCONTACTPOINTS, peakContactsOverFrames(300));
+}
+
+static void test_contacts_are_dropped_rather_than_wrapping(void)
+{
+    /* numContactPoints is a u8, so an unbounded count would eventually wrap to
+     * zero and start overwriting from the front - corruption ASan cannot see.
+     * The count must simply stop at the cap. */
+    tiledFloor(10, inttof32(1));
+    for (int i = 0; i < NUMOBJECTS; i++)
+        createOBB(i, TEST_CUBE_SIZE,
+                  vect((i % 3) * 128, inttof32(2) + (i / 3) * 128, (i % 2) * 128),
+                  TEST_CUBE_MASS, inttof32(1), 0);
+
+    for (int f = 0; f < 400; f++)
+    {
+        updateOBBs();
+        for (int i = 0; i < NUMOBJECTS; i++)
+            if (objects[i].used)
+                TEST_ASSERT_LESS_OR_EQUAL_UINT8(MAXCONTACTPOINTS, objects[i].numContactPoints);
+    }
+}
+
+static void test_the_allocator_refuses_a_full_body(void)
+{
+    OBB_struct *o = createOBB(0, TEST_CUBE_SIZE, vect(0, 0, 0), TEST_CUBE_MASS, inttof32(1), 0);
+    TEST_ASSERT_NOT_NULL(o);
+
+    o->numContactPoints = 0;
+    for (int i = 0; i < MAXCONTACTPOINTS; i++)
+        TEST_ASSERT_NOT_NULL_MESSAGE(nextContactPoint(o), "a slot below the cap was refused");
+
+    TEST_ASSERT_NULL_MESSAGE(nextContactPoint(o), "a slot past the cap was handed out");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(MAXCONTACTPOINTS, o->numContactPoints, "the refused slot still counted");
+
+    TEST_ASSERT_NULL(nextContactPoint(NULL));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -456,6 +560,11 @@ int main(void)
 
     RUN_TEST(test_plane_distance_is_signed);
     RUN_TEST(test_plane_is_normalised_on_init);
+    RUN_TEST(test_a_heap_of_bodies_stays_inside_the_contact_buffer);
+    RUN_TEST(test_an_ordinary_scene_stays_well_inside_the_buffer);
+    RUN_TEST(test_contacts_are_dropped_rather_than_wrapping);
+    RUN_TEST(test_the_allocator_refuses_a_full_body);
+
     RUN_TEST(test_plane_contacts_are_generated_for_a_sunken_box);
     RUN_TEST(test_plane_contacts_are_not_generated_for_a_clear_box);
 

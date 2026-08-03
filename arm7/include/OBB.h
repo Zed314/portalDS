@@ -133,6 +133,19 @@ typedef struct
 	bool sleep;                  /**< True while the body is asleep and not being simulated. */
 	bool used;                   /**< False when this slot is free. */
 }OBB_struct;
+
+/**
+ * @brief Claims the next free contact slot for a body.
+ *
+ * Every contact goes through here so that the shared buffer cannot be run past
+ * the end of - which a heap of bodies on a finely tiled floor is enough to do.
+ *
+ * @param o body to add a contact to.
+ * @return the slot, already counted, or NULL if @p o has reached
+ *         @ref MAXCONTACTPOINTS. A NULL return means the contact is dropped:
+ *         that surface goes unresolved for one step and the next picks it up.
+ */
+contactPoint_struct* nextContactPoint(OBB_struct* o);
 // 4 + 9*4*3 + 4 +
 
 extern OBB_struct objects[NUMOBJECTS]; /**< The rigid body pool; index is the id used on the FIFO. */

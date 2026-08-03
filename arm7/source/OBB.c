@@ -32,6 +32,28 @@
 
 contactPoint_struct contactPoints[MAXCONTACTPOINTS];
 
+/*
+ * Contacts are written through here rather than straight into the array,
+ * because nothing used to check the count against MAXCONTACTPOINTS. Eight
+ * bodies heaped on a finely tiled floor is enough to run past the end of it:
+ * the box-box narrow phase alone can produce two contacts for each of twelve
+ * segments against each of seven other bodies, and the static world adds more
+ * on top of that. Measured with eight cubes heaped on a tiled floor: 29
+ * box-box contacts and 8 from the world, against a buffer of 32.
+ *
+ * Contacts past the cap are dropped rather than replacing existing ones. There
+ * is nothing to rank them by - every site but one sets penetration to zero -
+ * and a dropped contact only means that surface goes unresolved for a frame,
+ * which the next step picks up. Overwriting a contact that had already been
+ * counted would be worse.
+ */
+contactPoint_struct* nextContactPoint(OBB_struct* o)
+{
+	if(!o || o->numContactPoints>=MAXCONTACTPOINTS)
+        return NULL;
+	return &o->contactPoints[o->numContactPoints++];
+}
+
 OBB_struct objects[NUMOBJECTS];
 
 uint32_t coll, integ, impul;
@@ -476,36 +498,44 @@ ARM_CODE void collideOBBs(OBB_struct* o1, OBB_struct* o2)
 				{
 					//p1=addVect(p1,vectMult(vv,k1));
 					//p2=addVect(p2,vectMult(vv,k2));
-					o1->contactPoints[o1->numContactPoints].point=vectDivInt(addVect(p1,p2),2);
-					o1->contactPoints[o1->numContactPoints].type=TESTPOINT;
-					vect3D n;
-					vect3D oo=vectDivInt(addVect(uu1,uu2),2);
-					vect3D p=projectPointAABB(o2->size,oo,&n);
-					o1->contactPoints[o1->numContactPoints].normal=(vect(n.x*u1.x+n.y*u2.x+n.z*u3.x,n.x*u1.y+n.y*u2.y+n.z*u3.y,n.x*u1.z+n.y*u2.z+n.z*u3.z));
-					o1->contactPoints[o1->numContactPoints].penetration=distance(p,oo);
-					//o1->contactPoints[o1->numContactPoints].penetration=0;
-					o1->contactPoints[o1->numContactPoints].target=o2;
-					o1->numContactPoints++;
+					contactPoint_struct* cp=nextContactPoint(o1);
+					if(cp)
+					{
+						cp->point=vectDivInt(addVect(p1,p2),2);
+						cp->type=TESTPOINT;
+						vect3D n;
+						vect3D oo=vectDivInt(addVect(uu1,uu2),2);
+						vect3D p=projectPointAABB(o2->size,oo,&n);
+						cp->normal=(vect(n.x*u1.x+n.y*u2.x+n.z*u3.x,n.x*u1.y+n.y*u2.y+n.z*u3.y,n.x*u1.z+n.y*u2.z+n.z*u3.z));
+						cp->penetration=distance(p,oo);
+						cp->target=o2;
+					}
 				}else{
 					if(b1)
 					{
 						//p1=addVect(p1,vectMult(vv,k1));
-						o1->contactPoints[o1->numContactPoints].point=p1;
-						o1->contactPoints[o1->numContactPoints].type=TESTPOINT;
-						o1->contactPoints[o1->numContactPoints].normal=n1;
-						o1->contactPoints[o1->numContactPoints].penetration=0;
-						o1->contactPoints[o1->numContactPoints].target=o2;
-						o1->numContactPoints++;
+						contactPoint_struct* cp=nextContactPoint(o1);
+						if(cp)
+						{
+							cp->point=p1;
+							cp->type=TESTPOINT;
+							cp->normal=n1;
+							cp->penetration=0;
+							cp->target=o2;
+						}
 					}
 					if(b2)
 					{
 						//p2=addVect(p2,vectMult(vv,k2));
-						o1->contactPoints[o1->numContactPoints].point=p2;
-						o1->contactPoints[o1->numContactPoints].type=TESTPOINT;
-						o1->contactPoints[o1->numContactPoints].normal=n2;
-						o1->contactPoints[o1->numContactPoints].penetration=0;
-						o1->contactPoints[o1->numContactPoints].target=o2;
-						o1->numContactPoints++;
+						contactPoint_struct* cp=nextContactPoint(o1);
+						if(cp)
+						{
+							cp->point=p2;
+							cp->type=TESTPOINT;
+							cp->normal=n2;
+							cp->penetration=0;
+							cp->target=o2;
+						}
 					}
 				}
 			}while(0);

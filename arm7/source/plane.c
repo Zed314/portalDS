@@ -50,13 +50,16 @@ void planeOBBContacts(plane_struct* p, OBB_struct* o)
 		int32 val1=evaluatePlanePoint(p,v[i]);
 		if(val1<=PENETRATIONTHRESHOLD)
 		{
-			o->contactPoints[o->numContactPoints].point=v[i];
-			o->contactPoints[o->numContactPoints].normal=vect(p->A,p->B,p->C);
-			o->contactPoints[o->numContactPoints].penetration=abs(val1);
-			o->contactPoints[o->numContactPoints].target=p;
-			o->contactPoints[o->numContactPoints].type=PLANECOLLISION;
-			o->maxPenetration=max(o->maxPenetration,-(min(val1,0)));
-			o->numContactPoints++;
+			contactPoint_struct* cp=nextContactPoint(o);
+			if(cp)
+			{
+				cp->point=v[i];
+				cp->normal=vect(p->A,p->B,p->C);
+				cp->penetration=abs(val1);
+				cp->target=p;
+				cp->type=PLANECOLLISION;
+				o->maxPenetration=max(o->maxPenetration,-(min(val1,0)));
+			}
 		}
 	}
 }
