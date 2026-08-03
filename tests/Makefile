@@ -85,7 +85,7 @@ D_ARM7    := -DARM7 -D__NDS__
 # reach the ARM7 build: arm7/include/math.h defines inttof32 and friends too.
 D_ARM9    := -DTEST_ARM9_FULL
 
-SUITES    := fixed_math matrix compression obb collision solver platform levelfile room rectangle
+SUITES    := fixed_math matrix compression obb collision solver platform levelfile room rectangle physics
 BINS      := $(addprefix $(BUILD)/test_,$(SUITES))
 
 .PHONY: all build test clean
@@ -167,6 +167,9 @@ $(BUILD)/test_room.o: $(TESTDIR)suites/test_room.c $(THISFILE) | $(BUILD)
 $(BUILD)/test_rectangle.o: $(TESTDIR)suites/test_rectangle.c $(THISFILE) | $(BUILD)
 	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
 
+$(BUILD)/test_physics.o: $(TESTDIR)suites/test_physics.c $(THISFILE) | $(BUILD)
+	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
+
 MATHOBJS  := $(BUILD)/unity.o $(BUILD)/arm_primitives.o $(BUILD)/arm7_math.o
 
 # The whole ARM7 physics engine, minus the FIFO layer that talks to the other
@@ -202,7 +205,8 @@ $(BUILD)/test_platform: $(BUILD)/test_platform.o $(PHYSOBJS)
 # the shipping one. level_fixture.o supplies the entity pools it calls into.
 LEVELOBJS := $(BUILD)/unity.o $(BUILD)/level_fixture.o \
              $(BUILD)/arm9_room.o $(BUILD)/arm9_levelinfo.o \
-             $(BUILD)/arm9_iniparser.o $(BUILD)/arm9_dictionary.o
+             $(BUILD)/arm9_iniparser.o $(BUILD)/arm9_dictionary.o \
+             $(BUILD)/arm9_rectangle.o
 
 $(BUILD)/test_levelfile: $(BUILD)/test_levelfile.o $(LEVELOBJS)
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm
@@ -210,10 +214,11 @@ $(BUILD)/test_levelfile: $(BUILD)/test_levelfile.o $(LEVELOBJS)
 $(BUILD)/test_room: $(BUILD)/test_room.o $(LEVELOBJS)
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm
 
-# editor/rectangle.c needs nothing from the game but malloc, so this one links
-# against the fixture only for the room types its headers name.
-$(BUILD)/test_rectangle: $(BUILD)/test_rectangle.o $(BUILD)/unity.o \
-                         $(BUILD)/level_fixture.o $(BUILD)/arm9_rectangle.o \
-                         $(BUILD)/arm9_room.o $(BUILD)/arm9_levelinfo.o \
-                         $(BUILD)/arm9_iniparser.o $(BUILD)/arm9_dictionary.o
+$(BUILD)/test_rectangle: $(BUILD)/test_rectangle.o $(LEVELOBJS)
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+# The player collision resolver. editor/rectangle.c is in LEVELOBJS and is
+# linked for real rather than stubbed: getClosestPointRectangle does the actual
+# geometry, so stubbing it would leave only a model of the resolver under test.
+$(BUILD)/test_physics: $(BUILD)/test_physics.o $(LEVELOBJS) $(BUILD)/arm9_physics.o
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm

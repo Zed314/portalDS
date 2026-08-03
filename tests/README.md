@@ -46,6 +46,7 @@ What is covered
 | `test_levelfile` | `arm9/source/game/room.c` + `levelinfo.c` - the entity section of a level file, and the level banner |
 | `test_room` | `arm9/source/game/room.c` - room geometry, and the rectangle sections of a level file |
 | `test_rectangle` | `arm9/source/editor/rectangle.c` - closest point, ray casts, the maximal rectangle finder and the lightmap atlas packer |
+| `test_physics` | `arm9/source/game/physics.c` - the player's swept sphere collision, movement and gravity |
 
 These are the parts of the codebase that are pure logic: data in, data out,
 no hardware. That is also where the bugs are worst, because a wrong answer in
@@ -112,12 +113,28 @@ maximal rectangle finder gets the same treatment: rather than pinning which
 rectangle it picks, the test alternates find-and-fill over a shape and checks
 it consumes every set cell and never claims one that was not set.
 
-Both suites also pin a few things that are wrong rather than right, in the
-same spirit as `test_platform`'s overshoot: an unknown entity tag
+`test_physics` covers the other collision system - the player's, which is not
+an ARM7 rigid body but a much simpler move-then-push-out sphere. It is worth
+testing for the same reason the solver is: an error does not crash, it makes
+movement feel wrong. Two things make it reachable at all. The rectangles it
+resolves against come from a grid cell, and the fixture hands it one the test
+built, so a test can put exactly one surface in front of the player. And
+`getClosestPointRectangle` is linked in for real from `editor/rectangle.c`
+rather than stubbed, so what is under test is the resolver and not a model of
+it.
+
+A few things are pinned as wrong rather than right, in the same spirit as
+`test_platform`'s overshoot. In the level readers: an unknown entity tag
 desynchronises the stream rather than being rejected, the rectangle counts
 have no upper bound the way the entity count now does, and `roomOriginSize`
-seeds its accumulators at 8192 and 0 instead of at the first rectangle. Each
-is commented with why it is pinned instead of fixed.
+seeds its accumulators at 8192 and 0 instead of at the first rectangle. In the
+player collision: a sphere whose centre lands exactly in a surface's plane
+divides by a zero distance and is not pushed out, and - the serious one - a
+player moving into a wall at about a hundred units per frame or more passes
+through it, because the correction pushes away from whichever side of the
+plane the centre is currently on and nothing records which side it started.
+Walking cannot reach that speed; coming out of a portal can. Each is commented
+with why it is pinned instead of fixed.
 
 Where a property cannot hold exactly, the inaccuracy is pinned rather than
 papered over with a loose tolerance: `test_platform` asserts that a platform

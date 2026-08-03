@@ -79,6 +79,9 @@ typedef struct
 	int rectangles;       /**< addRoomRectangle plus addSludgeRectangle calls. */
 	int sludgeRectangles; /**< addSludgeRectangle calls alone. */
 	int activatorTargets; /**< addActivatorTarget calls - the trigger wiring. */
+	int portalCollisions; /**< collidePortal calls - physics.c consulting the portals. */
+	int timedButtonChecks;/**< checkObjectTimedButtonsCollision calls. */
+	int elevatorsClosed;  /**< closeElevator calls. */
 } levelFixtureCounts_struct;
 
 extern levelFixtureCounts_struct levelFixtureCounts;
@@ -90,6 +93,29 @@ extern levelFixtureCounts_struct levelFixtureCounts;
  * physicsReset().
  */
 void levelFixtureReset(void);
+
+/*
+ * The grid cell game/physics.c collides against.
+ *
+ * On a real DS getCurrentCell() picks a cell out of the room's spatial grid,
+ * which generateRoomGrid() builds. Here the test builds the cell directly and
+ * getCurrentCell() hands back whatever it was given, which is what makes the
+ * collision resolver testable one surface at a time: nothing else decides
+ * which rectangles it is asked to consider.
+ *
+ * Rectangles are in tile coordinates, as they are in a level file - physics.c
+ * multiplies up by TILESIZE and HEIGHTUNIT itself.
+ */
+void levelFixtureCellClear(void);
+
+/**
+ * Puts a collidable rectangle in the cell and returns it, so a test can read
+ * its touched flag back afterwards.
+ */
+rectangle_struct* levelFixtureCellAdd(vect3D position, vect3D size, vect3D normal);
+
+/** Makes getCurrentCell() return NULL, as it does for a point outside the room. */
+void levelFixtureCellDetach(void);
 
 /** Appends a rectangle to a room's list, exactly as addRoomRectangle does. */
 rectangle_struct* levelFixturePushRectangle(room_struct* r, vect3D position, vect3D size, vect3D normal);
@@ -116,5 +142,15 @@ vect3D orientVector(vect3D v, u8 k);
 void invertRectangle(rectangle_struct* rec);
 void roomOriginSize(room_struct* r, vect3D* o, vect3D* s);
 void roomResetOrigin(room_struct* r);
+
+/* Under test, from arm9/source/game/physics.c. */
+bool checkObjectCollision(physicsObject_struct* o, room_struct* r);
+bool checkObjectCollisionCell(gridCell_struct* gc, physicsObject_struct* o, room_struct* r);
+bool collideRectangle(physicsObject_struct* o, room_struct* r, vect3D p, vect3D s);
+u8 checkObjectElevatorCollision(physicsObject_struct* o, room_struct* r, elevator_struct* ev);
+void collideObjectRoom(physicsObject_struct* o, room_struct* r);
+void changeGravity(vect3D v, int32 l);
+bool pointInRoom(room_struct* r, vect3D p, vect3D* v);
+vect3D convertCoord(room_struct* r, vect3D p);
 
 #endif

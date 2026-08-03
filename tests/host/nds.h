@@ -110,13 +110,43 @@ static inline u32 sqrt64(u64 a)
 	return (u32)r;
 }
 
-/* Both operate on int32[3] in place / into a third, as libnds does.
+/* 20.12 square root, as libnds' sqrtf32 does it. A macro rather than a
+ * function because gcc has a builtin of that name with a completely different
+ * signature (_Float32 sqrtf32(_Float32)), and declaring over it warns. */
+#define sqrtf32(a) ((int32)sqrt64(((int64)(a)) << 12))
+
+/* The hardware 64/32 divider. Plain integer division, not fixed point. */
+static inline int32 div64(int64 num, int32 den)
+{
+	if(!den) return 0; /* the hardware returns garbage; do not trap the test */
+	return (int32)(num / den);
+}
+
+/*
+ * libnds' binary angle trigonometry: a full turn is 32768 and the result is
+ * scaled to 4096. The DS builds these from a 512 entry table with linear
+ * interpolation between entries; here they come straight from libm, so the two
+ * agree to within the table's interpolation error rather than exactly. That is
+ * fine for what the tests do with them - deciding which side of an elevator's
+ * entry cone a point is on - as long as the test points are not right on the
+ * boundary.
+ */
+int32 cosLerp(int16 angle);
+int32 sinLerp(int16 angle);
+
+/*
+ * Both operate on int32[3], in place and into a third, as libnds does. They
+ * are real implementations rather than stubs: normalize() and vectProduct() in
+ * common/math.h are the only way the game gets a unit vector or a cross
+ * product, so a stub here would silently give every caller a wrong answer
+ * instead of a missing symbol.
  *
  * normalizef32 takes void* rather than libnds' int32*, because normalize() in
  * common/math.h calls it with a vect3D* down one branch and an int32(*)[3]
  * down the other. Neither matches int32*; the ARM9 build has been quietly
  * warning about that for years. Declaring it laxer here keeps the test build
- * clean without editing game code to suit the tests. */
+ * clean without editing game code to suit the tests.
+ */
 void normalizef32(void* a);
 void crossf32(int32* a, int32* b, int32* result);
 

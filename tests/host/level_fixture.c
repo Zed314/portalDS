@@ -7,6 +7,8 @@
  * on what a file produced.
  */
 
+#include <math.h>
+
 #include "level_fixture.h"
 
 levelFixtureCounts_struct levelFixtureCounts;
@@ -36,6 +38,8 @@ static createdEntity_struct* record(createdKind_type kind)
 
 /* Reader-visible game globals. */
 room_struct gameRoom;
+portal_struct portal1, portal2;
+platform_struct platform[NUMPLATFORMS];
 wallDoor_struct entryWallDoor;
 wallDoor_struct exitWallDoor;
 bool isNextRoom;
@@ -83,6 +87,11 @@ void levelFixtureReset(void)
 	memset(&thePlayerObject, 0, sizeof(thePlayerObject));
 	memset(&thePlayer, 0, sizeof(thePlayer));
 	thePlayer.object = &thePlayerObject;
+
+	levelFixtureCellClear();
+	memset(&portal1, 0, sizeof(portal1));
+	memset(&portal2, 0, sizeof(portal2));
+	memset(platform, 0, sizeof(platform));
 
 	memset(entityTargetArray, 0, sizeof(entityTargetArray));
 	memset(entityActivatorArray, 0, sizeof(entityActivatorArray));
@@ -277,6 +286,80 @@ void initLightDataLM(lightingData_struct* ld, u16 n)
 	ld->type = LIGHTMAP_DATA;
 }
 
+/* --- the collision grid game/physics.c walks ----------------------------- */
+
+#define MAX_CELL_RECTANGLES 32
+
+static gridCell_struct theCell;
+static rectangle_struct cellRectangles[MAX_CELL_RECTANGLES];
+static rectangle_struct* cellRectanglePointers[MAX_CELL_RECTANGLES];
+static bool cellDetached;
+
+void levelFixtureCellClear(void)
+{
+	memset(&theCell, 0, sizeof(theCell));
+	memset(cellRectangles, 0, sizeof(cellRectangles));
+	memset(cellRectanglePointers, 0, sizeof(cellRectanglePointers));
+	theCell.rectangles = cellRectanglePointers;
+	cellDetached = false;
+}
+
+rectangle_struct* levelFixtureCellAdd(vect3D position, vect3D size, vect3D normal)
+{
+	if(theCell.numRectangles >= MAX_CELL_RECTANGLES)return NULL;
+
+	rectangle_struct* rec = &cellRectangles[theCell.numRectangles];
+	memset(rec, 0, sizeof(*rec));
+	rec->position = position;
+	rec->size = size;
+	rec->normal = normal;
+	rec->collides = true;
+	rec->AARid = -1;
+
+	cellRectanglePointers[theCell.numRectangles] = rec;
+	theCell.numRectangles++;
+	return rec;
+}
+
+void levelFixtureCellDetach(void)
+{
+	cellDetached = true;
+}
+
+gridCell_struct* getCurrentCell(room_struct* r, vect3D o)
+{
+	(void)r;(void)o;
+	return cellDetached ? NULL : &theCell;
+}
+
+/* --- the rest of the collision world ------------------------------------- */
+
+/*
+ * physics.c consults the portals so a surface with a portal on it stops
+ * pushing the player out - that is what lets you walk through. The real
+ * version lives in game/player.c and needs the portal display lists; here it
+ * is counted rather than modelled, so a test can check the reader asks
+ * without pretending to answer.
+ */
+void collidePortal(room_struct* r, rectangle_struct* rec, portal_struct* p, vect3D* point)
+{
+	(void)r;(void)rec;(void)p;(void)point;
+	levelFixtureCounts.portalCollisions++;
+}
+
+bool checkObjectTimedButtonsCollision(physicsObject_struct* o, room_struct* r)
+{
+	(void)o;(void)r;
+	levelFixtureCounts.timedButtonChecks++;
+	return false;
+}
+
+void closeElevator(elevator_struct* ev)
+{
+	(void)ev;
+	levelFixtureCounts.elevatorsClosed++;
+}
+
 /* --- things the reader touches but the host cannot have ------------------ */
 
 player_struct* getPlayer(void) { return &thePlayer; }
@@ -305,7 +388,35 @@ void readHeader(mapHeader_struct* h, FILE* f)
 	if(fread(h, MAPHEADER_SIZE, 1, f)!=1)memset(h, 0, sizeof(*h));
 }
 
-void normalizef32(void* a) { (void)a; }
-void crossf32(int32* a, int32* b, int32* result) { (void)a;(void)b;(void)result; }
+/*
+ * The libnds maths the ARM9 headers call out to. Real implementations, not
+ * stubs - see the note in nds.h.
+ */
+void normalizef32(void* a)
+{
+	int32* v = (int32*)a;
+	const int32 len = (int32)sqrt64((int64)v[0]*v[0] + (int64)v[1]*v[1] + (int64)v[2]*v[2]);
+	if(!len)return;
+	v[0] = divf32(v[0], len);
+	v[1] = divf32(v[1], len);
+	v[2] = divf32(v[2], len);
+}
+
+void crossf32(int32* a, int32* b, int32* result)
+{
+	result[0] = mulf32(a[1], b[2]) - mulf32(a[2], b[1]);
+	result[1] = mulf32(a[2], b[0]) - mulf32(a[0], b[2]);
+	result[2] = mulf32(a[0], b[1]) - mulf32(a[1], b[0]);
+}
+
+int32 cosLerp(int16 angle)
+{
+	return (int32)lround(cos((double)angle * 2.0 * M_PI / 32768.0) * 4096.0);
+}
+
+int32 sinLerp(int16 angle)
+{
+	return (int32)lround(sin((double)angle * 2.0 * M_PI / 32768.0) * 4096.0);
+}
 void setBrightness(int screen, int level) { (void)screen;(void)level; }
 void swiWaitForVBlank(void) {}
