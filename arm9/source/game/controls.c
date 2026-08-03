@@ -328,8 +328,10 @@ static void controlShootAll(player_struct* p, bool down, bool held)
 
     if(!p->modelInstance.oneshot)
     {
-        playSFX(currentPortalColor?gunSFX1:gunSFX2);
-        shootPlayerGun(p,currentPortalColor,255);
+        //after the shot, not before it: a refused shot plays its own sound and
+        //the firing sound over the top would bury it
+        if(shootPlayerGun(p,currentPortalColor,255))
+            playSFX(currentPortalColor?gunSFX1:gunSFX2);
         changeAnimation(&p->modelInstance,1,true);
     }
 }
@@ -345,8 +347,8 @@ static void controlShootYellow(player_struct* p, bool down, bool held)
 
     if(!p->modelInstance.oneshot)
     {
-        playSFX(gunSFX1);
-        shootPlayerGun(p,true,255);
+        if(shootPlayerGun(p,true,255))
+            playSFX(gunSFX1);
         changeAnimation(&p->modelInstance,1,true);
     }
 }
@@ -362,8 +364,8 @@ static void controlShootBlue(player_struct* p, bool down, bool held)
 
     if(!p->modelInstance.oneshot)
     {
-        playSFX(gunSFX2);
-        shootPlayerGun(p,false,255);
+        if(shootPlayerGun(p,false,255))
+            playSFX(gunSFX2);
         changeAnimation(&p->modelInstance,1,true);
     }
 }
@@ -379,8 +381,9 @@ static void controlUse(player_struct* p, bool down, bool held)
 
     if(!p->modelInstance.oneshot)
     {
-        playSFX(gunSFX2);
-        shootPlayerGun(p,false,1|2);
+        //this one cannot be refused - it never asks for portal placement
+        if(shootPlayerGun(p,false,1|2))
+            playSFX(gunSFX2);
         changeAnimation(&p->modelInstance,1,true);
     }
 }

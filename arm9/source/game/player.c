@@ -314,10 +314,11 @@ void renderGun(player_struct* p)
 	glPopMatrix(1);
 }
 
-void shootPlayerGun(player_struct* p, bool R, u8 mode)
+bool shootPlayerGun(player_struct* p, bool R, u8 mode)
 {
 	if(!p)p=&player;
-	if(!p->currentRoom)return;
+	//nothing to shoot at, but the gun still went off
+	if(!p->currentRoom)return true;
 	camera_struct* c=getPlayerCamera();
 
 	p->currentPortal=R;
@@ -382,6 +383,7 @@ void shootPlayerGun(player_struct* p, bool R, u8 mode)
 				//the surface takes portals, but this one will not fit on it -
 				//it hangs off an edge, or the other portal is already there
 				refuseShot(p);
+				return false;
 			}
 		}
         else if(mode&4)
@@ -390,8 +392,11 @@ void shootPlayerGun(player_struct* p, bool R, u8 mode)
             //an emancipation grid in the way
             NOGBA("TRIED TO PLACE PORTAL BUT FAILED\n");
             refuseShot(p);
+            return false;
         }
 	}
+
+	return true;
 }
 
 extern OBB_struct objects[NUMOBJECTS];

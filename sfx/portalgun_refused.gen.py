@@ -30,9 +30,15 @@ import wave
 RATE = 22050          # playSFX() hardcodes this
 # Set by loudness, not by peak. A gunshot is a transient - it hits 0.95 of full
 # scale but only carries 16.5% RMS - whereas a sustained sine sits near its own
-# peak the whole time. Matching peaks would have made this the louder of the
-# two. 0.18 puts it around 10% RMS, comfortably under the shot it follows.
-PEAK = 0.18
+# peak the whole time, so matching peaks would make this much the louder of the
+# two. Judge it by RMS instead.
+#
+# This plays *instead of* the firing sound, not underneath it, so the target is
+# roughly the firing sounds' own loudness rather than something tucked below
+# them - a refused shot should not sound like the game went quiet. 0.24 lands
+# near 13% RMS against their 16.5%: present, and still softer for being shorter
+# and a sine rather than a crack.
+PEAK = 0.24
 HARMONIC = 0.12       # a little second harmonic, to stop it sounding like a beep
 
 # A descending perfect fourth: C5 down to G4. Falling reads as "no" where the

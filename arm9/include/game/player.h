@@ -105,7 +105,19 @@ player_struct* getPlayer(void);
  * @param R    true for the right trigger, false for the left. Selects the portal colour.
  * @param mode bit mask: 1 activate, 2 grab, 4 place a portal.
  */
-void shootPlayerGun(player_struct* p, bool R, u8 mode);
+/**
+ * @brief Fires the gun: casts a ray from the camera and acts on what it hits.
+ *
+ * @param p    player firing; NULL for the local one.
+ * @param R    which portal colour this shot places.
+ * @param mode bitmask of what the shot may act on: 1 timed buttons, 2 the
+ *             gravity gun, 4 portal placement.
+ * @return true if the caller should play the firing sound. False means the
+ *         shot was refused and the error sound has already been played in its
+ *         place - see refuseShot() - so playing the firing sound as well would
+ *         drown it out.
+ */
+bool shootPlayerGun(player_struct* p, bool R, u8 mode);
 
 /** @brief Releases the player's models. */
 void freePlayer(void);
