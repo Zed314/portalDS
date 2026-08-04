@@ -85,7 +85,7 @@ D_ARM7    := -DARM7 -D__NDS__
 # reach the ARM7 build: arm7/include/math.h defines inttof32 and friends too.
 D_ARM9    := -DTEST_ARM9_FULL
 
-SUITES    := fixed_math matrix compression obb collision solver platform levelfile room rectangle physics pcx portals
+SUITES    := fixed_math matrix compression obb collision solver platform levelfile room rectangle physics pcx portals settings
 BINS      := $(addprefix $(BUILD)/test_,$(SUITES))
 
 .PHONY: all build test clean
@@ -176,6 +176,9 @@ $(BUILD)/test_pcx.o: $(TESTDIR)suites/test_pcx.c $(THISFILE) | $(BUILD)
 $(BUILD)/test_portals.o: $(TESTDIR)suites/test_portals.c $(THISFILE) | $(BUILD)
 	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
 
+$(BUILD)/test_settings.o: $(TESTDIR)suites/test_settings.c $(THISFILE) | $(BUILD)
+	$(CC) $(TESTFLAGS) $(D_ARM9) $(I_HOST) $(I_UNITY) $(I_ARM9) -c $< -o $@
+
 MATHOBJS  := $(BUILD)/unity.o $(BUILD)/arm_primitives.o $(BUILD)/arm7_math.o
 
 # The whole ARM7 physics engine, minus the FIFO layer that talks to the other
@@ -237,4 +240,10 @@ $(BUILD)/test_pcx: $(BUILD)/test_pcx.o $(LEVELOBJS) $(BUILD)/arm9_pcx.o
 
 # Portal placement; portals.c and PIC.c are both in LEVELOBJS.
 $(BUILD)/test_portals: $(BUILD)/test_portals.o $(LEVELOBJS)
+	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+# The settings file. iniparser and dictionary are the real ones - the point of
+# the suite is the round trip through the format the game actually writes -
+# and files.c is here for basePath, which settings.c resolves its path from.
+$(BUILD)/test_settings: $(BUILD)/test_settings.o $(LEVELOBJS) $(BUILD)/arm9_settings.o
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm

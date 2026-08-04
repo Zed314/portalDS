@@ -23,6 +23,14 @@
 #define min(a,b) (((a)>(b))?(b):(a))
 #define max(a,b) (((a)>(b))?(a):(b))
 
+/*
+ * Not behind TEST_ARM9_FULL, unlike the rest of the ARM9 headers below: the
+ * real general.h puts this one before common/math.h because fadeIn() reads the
+ * brightness setting out of it, so anything reaching math.h needs it too - and
+ * the suites that only want the fixed point maths reach math.h directly.
+ */
+#include "common/settings.h"
+
 /* On the DS this writes to the no$gba debug console. There is nothing to
  * write to here, and a test run should not be printing anyway. */
 #define NOGBA(_fmt, _args...) ((void)0)

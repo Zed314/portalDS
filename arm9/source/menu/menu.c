@@ -172,9 +172,10 @@ void menuFrame(void)
 	}
 	else
 	{
-		//The credits take over this screen while their page is up; the buttons,
-		//including Back, stay on the other one.
+		//The credits and the options take over this screen while their page is
+		//up; the buttons, including Back, stay on the other one.
 		drawMenuCredits();
+		drawMenuOptions();
 
 		if(logoAlpha)
 		{
@@ -199,6 +200,8 @@ void killMenu(void)
 
 void menuVBL(void)
 {
-
+	//The options page changes the brightness, and this is the one moment in the
+	//frame the register can be written without leaving a seam down the screen.
+	updatePendingBrightness();
 }
 

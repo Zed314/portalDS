@@ -38,6 +38,13 @@ static void setupMenuPage(menuButton_struct* mp, u8 n);
 static void mainMenuCreditsButtonFunction(sguiButton_struct* b);
 static void creditsMenuBackButtonFunction(sguiButton_struct* b);
 
+static void mainMenuOptionsButtonFunction(sguiButton_struct* b);
+static void optionsMenuUpButtonFunction(sguiButton_struct* b);
+static void optionsMenuDownButtonFunction(sguiButton_struct* b);
+static void optionsMenuLessButtonFunction(sguiButton_struct* b);
+static void optionsMenuMoreButtonFunction(sguiButton_struct* b);
+static void optionsMenuBackButtonFunction(sguiButton_struct* b);
+
 static void startMenuPlayButtonFunction(sguiButton_struct* b);
 static void mainMenuCreateButtonFunction(sguiButton_struct* b);
 static void mainMenuPlayButtonFunction(sguiButton_struct* b);
@@ -63,6 +70,7 @@ static void freeFileList(char** list, int length);
 static int listFiles(char* path, char** list);
 
 static bool creditsShown=false;
+static bool optionsShown=false;
 
 static char **testList=NULL;
 static int testListCnt, testListCnt1;
@@ -72,10 +80,15 @@ static menuButton_struct startMenuPage[]={(menuButton_struct){"START", (buttonTa
 static u8 startMenuPageLength=arrayLength(startMenuPage);
 //setupMenuPage() stacks these from the bottom of the screen upwards, so index
 //zero is the lowest button. Credits therefore goes first to sit under Options.
-static menuButton_struct mainMenuPage[]={(menuButton_struct){"Credits", (buttonTargetFunction)mainMenuCreditsButtonFunction}, (menuButton_struct){"Options", NULL}, (menuButton_struct){"Create", (buttonTargetFunction)mainMenuCreateButtonFunction}, (menuButton_struct){"Play", (buttonTargetFunction)mainMenuPlayButtonFunction}};
+static menuButton_struct mainMenuPage[]={(menuButton_struct){"Credits", (buttonTargetFunction)mainMenuCreditsButtonFunction}, (menuButton_struct){"Options", (buttonTargetFunction)mainMenuOptionsButtonFunction}, (menuButton_struct){"Create", (buttonTargetFunction)mainMenuCreateButtonFunction}, (menuButton_struct){"Play", (buttonTargetFunction)mainMenuPlayButtonFunction}};
 static u8 mainMenuPageLength=arrayLength(mainMenuPage);
 static menuButton_struct creditsMenuPage[]={(menuButton_struct){"Back", (buttonTargetFunction)creditsMenuBackButtonFunction}};
 static u8 creditsMenuPageLength=arrayLength(creditsMenuPage);
+//Up and Down move the cursor over the settings, Less and More change the one it
+//is on - the same shape as the level lists' Up/Down/OK, which is the only
+//multiple-choice idiom this GUI has.
+static menuButton_struct optionsMenuPage[]={(menuButton_struct){"Back", (buttonTargetFunction)optionsMenuBackButtonFunction}, (menuButton_struct){"More", (buttonTargetFunction)optionsMenuMoreButtonFunction}, (menuButton_struct){"Less", (buttonTargetFunction)optionsMenuLessButtonFunction}, (menuButton_struct){"Down", (buttonTargetFunction)optionsMenuDownButtonFunction}, (menuButton_struct){"Up", (buttonTargetFunction)optionsMenuUpButtonFunction}};
+static u8 optionsMenuPageLength=arrayLength(optionsMenuPage);
 static menuButton_struct playMenuPage[]={(menuButton_struct){"Back", (buttonTargetFunction)playMenuBackButtonFunction}, (menuButton_struct){"Select Level", playMenuLoadLevelButtonFunction}, (menuButton_struct){"Campaign", playMenuCampaignButtonFunction}};
 static u8 playMenuPageLength=arrayLength(playMenuPage);
 static menuButton_struct createMenuPage[]={(menuButton_struct){"Back", (buttonTargetFunction)createMenuBackButtonFunction}, (menuButton_struct){"Load Level", createMenuLoadLevelButtonFunction}, (menuButton_struct){"New level", (buttonTargetFunction)createMenuNewLevelButtonFunction}};
@@ -101,9 +114,11 @@ static void setupMenuPage(menuButton_struct* mp, u8 n)
 {
 	if(!mp || !n)return;
 
-	//Any page change leaves the credits, so the flag is cleared here rather
-	//than in every callback that could navigate away from them.
+	//Any page change leaves the credits and the options, so the flags are
+	//cleared here rather than in every callback that could navigate away from
+	//them.
 	creditsShown=false;
+	optionsShown=false;
 
 	cleanUpSimpleButtons();
 
@@ -223,6 +238,179 @@ static void mainMenuCreditsButtonFunction(sguiButton_struct* b)
 
 static void creditsMenuBackButtonFunction(sguiButton_struct* b)
 {
+	setupMenuPage(mainMenuPage, mainMenuPageLength);
+}
+
+/*
+ * The options screen.
+ *
+ * Laid out like the credits and for the same reason: the settings are drawn on
+ * whichever screen is not showing the buttons, so the list gets a whole screen
+ * and Up, Down, Less, More and Back all stay reachable underneath.
+ *
+ * One row per setting, the selected one in yellow. Labels are left aligned and
+ * values right aligned against the opposite margin, so the values line up in a
+ * column of their own whatever the labels do - the same reasoning as
+ * drawCreditsLine(), by the same arithmetic.
+ *
+ * The settings themselves live in settings.h; this page only moves them within
+ * the ranges declared there and writes the result out on the way back.
+ */
+typedef enum
+{
+	OPTION_SENSITIVITY,
+	OPTION_INVERTLOOK,
+	OPTION_VOLUME,
+	OPTION_BRIGHTNESS,
+	OPTION_NUMBER
+}menuOption_type;
+
+static const char* optionNames[OPTION_NUMBER]={"Sensitivity", "Invert look", "Volume", "Brightness"};
+
+static u8 optionsCursor=0;
+
+#define OPTIONSTITLE (20)   /**< Pixels from the top of the screen to the title. */
+#define OPTIONSTOP (56)     /**< Pixels from the top of the screen to the first row. */
+#define OPTIONSSPACING (16) /**< Pixels between one row and the next. */
+#define OPTIONSMARGIN (24)  /**< Distance of the labels and the values from their edges. */
+
+/** @brief Writes one setting's value as the player reads it. */
+static void optionValueString(menuOption_type o, char* out, int n)
+{
+	switch(o)
+	{
+		case OPTION_SENSITIVITY: snprintf(out, n, "%d%%", settings.lookSensitivity); break;
+		case OPTION_INVERTLOOK: snprintf(out, n, "%s", settings.invertLookY?"on":"off"); break;
+		case OPTION_VOLUME: snprintf(out, n, "%d%%", settings.sfxVolume); break;
+		case OPTION_BRIGHTNESS: snprintf(out, n, "%d", settings.brightness); break;
+		default: out[0]='\0'; break;
+	}
+}
+
+/**
+ * @brief Moves one setting by one step.
+ * @param o setting to change.
+ * @param direction -1 for Less, 1 for More.
+ *
+ * Every case clamps rather than wraps: a player holding More to reach the top
+ * of a range should stop there, not come back round at the bottom.
+ */
+static void stepOption(menuOption_type o, int direction)
+{
+	switch(o)
+	{
+		case OPTION_SENSITIVITY:
+		{
+			const int v=settings.lookSensitivity+direction*SETTINGS_SENSITIVITY_STEP;
+			settings.lookSensitivity=max(SETTINGS_SENSITIVITY_MIN, min(SETTINGS_SENSITIVITY_MAX, v));
+			break;
+		}
+		case OPTION_INVERTLOOK:
+			//Two states, so both buttons do the same thing to it.
+			settings.invertLookY=!settings.invertLookY;
+			break;
+		case OPTION_VOLUME:
+		{
+			const int v=settings.sfxVolume+direction*SETTINGS_VOLUME_STEP;
+			settings.sfxVolume=max(SETTINGS_VOLUME_MIN, min(SETTINGS_VOLUME_MAX, v));
+			break;
+		}
+		case OPTION_BRIGHTNESS:
+		{
+			const int v=settings.brightness+direction*SETTINGS_BRIGHTNESS_STEP;
+			settings.brightness=max(SETTINGS_BRIGHTNESS_MIN, min(SETTINGS_BRIGHTNESS_MAX, v));
+			//Applied at the next vblank rather than here - see settings.h.
+			requestBrightnessUpdate();
+			break;
+		}
+		default: break;
+	}
+}
+
+/** @brief Draws one row: label at the left margin, value at the right one. */
+static void drawOptionRow(menuOption_type o, int y)
+{
+	char value[16];
+	optionValueString(o, value, sizeof(value));
+
+	//Yellow marks the row Less and More act on. There is no cursor sprite to
+	//draw, and with four rows on a screen colour is enough to find it by.
+	const u16 color=(o==optionsCursor)?RGB15(31,31,0):RGB15(31,31,31);
+
+	drawString((char*)optionNames[o], color, inttof32(1), inttof32(OPTIONSMARGIN), inttof32(y));
+	drawString(value, color, inttof32(1),
+		inttof32(256-OPTIONSMARGIN-(int)strlen(value)*8), inttof32(y));
+}
+
+void drawMenuOptions(void)
+{
+	if(!optionsShown)return;
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+		glLoadIdentity();
+		glOrthof32(inttof32(0), inttof32(255), inttof32(191), inttof32(0), -inttof32(1), inttof32(1));
+
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+			glLoadIdentity();
+
+			//Centred, by the same half-a-line-is-scale*4-per-character
+			//arithmetic drawCreditsLine() uses.
+			const int32 titleScale=inttof32(3)/2;
+			drawString("OPTIONS", RGB15(31,31,31), titleScale,
+				inttof32(128)-(7*titleScale)*4, inttof32(OPTIONSTITLE));
+
+			int i;
+			for(i=0;i<OPTION_NUMBER;i++)drawOptionRow(i, OPTIONSTOP+i*OPTIONSSPACING);
+
+			//Worth saying while the page is up rather than after Back has been
+			//pressed and the page is gone: without a card there is nowhere for
+			//any of this to be written.
+			if(!settingsCanBeSaved())
+			{
+				drawString("no card - changes are not saved", RGB15(31,16,16), inttof32(1),
+					inttof32(0), inttof32(OPTIONSTOP+OPTION_NUMBER*OPTIONSSPACING+16));
+			}
+
+		glPopMatrix(1);
+		glMatrixMode(GL_PROJECTION);
+	glPopMatrix(1);
+}
+
+static void mainMenuOptionsButtonFunction(sguiButton_struct* b)
+{
+	setupMenuPage(optionsMenuPage, optionsMenuPageLength);
+	optionsShown=true; //after setupMenuPage, which clears it
+	optionsCursor=0;
+}
+
+static void optionsMenuUpButtonFunction(sguiButton_struct* b)
+{
+	if(optionsCursor)optionsCursor--;
+}
+
+static void optionsMenuDownButtonFunction(sguiButton_struct* b)
+{
+	if(optionsCursor+1<OPTION_NUMBER)optionsCursor++;
+}
+
+static void optionsMenuLessButtonFunction(sguiButton_struct* b)
+{
+	stepOption(optionsCursor, -1);
+}
+
+static void optionsMenuMoreButtonFunction(sguiButton_struct* b)
+{
+	stepOption(optionsCursor, 1);
+}
+
+static void optionsMenuBackButtonFunction(sguiButton_struct* b)
+{
+	//Leaving the page is what saves. Writing on every tap of Less or More would
+	//be a card write per press, and this is the only way off the page.
+	saveSettings();
+
 	setupMenuPage(mainMenuPage, mainMenuPageLength);
 }
 

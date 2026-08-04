@@ -575,8 +575,15 @@ void playerControls(player_struct* p)
 		    // if(dx>-2&&dx<2)dx=0;
 		    // if(dy>-2&&dy<2)dy=0;
 
-		    angle.x-=degreesToAngle(dy);
-		    angle.y-=degreesToAngle(dx);
+		    //A drag turns the camera a degree per pixel, scaled by the
+		    //sensitivity setting. The delta is bounded to 50 by the test above
+		    //and the setting to 200 percent, so the multiply stays small.
+		    const int32 pitch=(degreesToAngle((int32)dy)*settings.lookSensitivity)/100;
+		    const int32 yaw=(degreesToAngle((int32)dx)*settings.lookSensitivity)/100;
+
+		    if(settings.invertLookY)angle.x+=pitch;
+		    else angle.x-=pitch;
+		    angle.y-=yaw;
 	    }
 	    p->tempAngle=addVect(p->tempAngle,angle);
 

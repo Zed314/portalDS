@@ -49,7 +49,14 @@ void loadSFX(SFX_struct* s, char* filename, SoundFormat format);
  */
 SFX_struct* createSFX(char* filename, SoundFormat format);
 
-/** @brief Plays an effect once on the next free hardware channel. */
+/**
+ * @brief Plays an effect once on the next free hardware channel.
+ *
+ * At the volume in @ref settings, which is where every effect in the game gets
+ * its level from - there is no per-effect volume. A setting of zero plays
+ * nothing at all rather than a silent sample, so a muted game does not spend
+ * channels.
+ */
 void playSFX(SFX_struct* s);
 
 #endif

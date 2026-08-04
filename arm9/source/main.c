@@ -7,8 +7,11 @@
  *     a white screen;
  *  2. @ref initFilesystem - if this fails there is nothing to load, so the
  *     game prints a message and waits for START rather than continuing;
- *  3. @c glInit, then optionally the address sanitizer;
- *  4. @ref changeState / @ref applyState to select the first state.
+ *  3. @ref loadSettings, which reads the card and so has to follow the
+ *     filesystem, and which every state reads rather than asks for and so has
+ *     to precede all of them;
+ *  4. @c glInit, then optionally the address sanitizer;
+ *  5. @ref changeState / @ref applyState to select the first state.
  *
  * After that main() runs the state machine forever: init, frame until the
  * state asks to end, kill, switch. See @ref state.h for how that works.
@@ -95,6 +98,10 @@ int main(int argc, char **argv)
                 return 1;
         }
     }
+    //Needs the filesystem up, and has to be before any state is entered: the
+    //states read settings rather than ask for them.
+    loadSettings();
+
     glInit();
 #if McuASAN_CONFIG_IS_ENABLED
     NOGBA("Init ASAN\n");

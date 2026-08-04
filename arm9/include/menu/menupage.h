@@ -40,4 +40,13 @@ void setupHomeMenuPage(void);
  */
 void drawMenuCredits(void);
 
+/**
+ * @brief Draws the options and their values, if that page is up.
+ *
+ * Called from menuFrame() for the screen that is not showing the buttons, in
+ * place of the logo, exactly as @ref drawMenuCredits is. Does nothing on any
+ * other page.
+ */
+void drawMenuOptions(void);
+
 #endif

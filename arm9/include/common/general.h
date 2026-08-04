@@ -46,6 +46,7 @@
 // Shared infrastructure, in dependency order.
 #include "common/compress.h"    // level data decompression (from GRIT)
 #include "common/iniparser.h"   // .ini reader used for level and config files
+#include "common/settings.h"    // the player's settings, read from config.ini
 #include "common/math.h"        // fixed point vectors and matrices
 #include "common/files.h"       // NitroFS / FAT file access
 #include "dual3D.h"             // rendering 3D to both screens

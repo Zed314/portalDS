@@ -75,5 +75,9 @@ void playSFX(SFX_struct* s)
 {
 	if(!s || !s->used || !s->data)return;
 
-	soundPlaySample(s->data, s->format, s->size, 22050, 127, 64, false, 0);
+	//The setting is a percentage; the hardware takes 0-127.
+	const int volume=(settings.sfxVolume*SETTINGS_VOLUME_HARDWARE_MAX)/SETTINGS_VOLUME_MAX;
+	if(!volume)return;
+
+	soundPlaySample(s->data, s->format, s->size, 22050, volume, 64, false, 0);
 }
