@@ -96,20 +96,11 @@ void renderGun(player_struct*);
 player_struct* getPlayer(void);
 
 /**
- * @brief Fires the gun.
- *
- * Casts a ray from the camera and acts on whatever it hits, according to
- * @p mode.
- *
- * @param p    player firing, or NULL for the global one.
- * @param R    true for the right trigger, false for the left. Selects the portal colour.
- * @param mode bit mask: 1 activate, 2 grab, 4 place a portal.
- */
-/**
  * @brief Fires the gun: casts a ray from the camera and acts on what it hits.
  *
  * @param p    player firing; NULL for the local one.
- * @param R    which portal colour this shot places.
+ * @param R    which portal colour this shot places: true for the right
+ *             trigger's, false for the left's.
  * @param mode bitmask of what the shot may act on: 1 timed buttons, 2 the
  *             gravity gun, 4 portal placement.
  * @return true if the caller should play the firing sound. False means the
