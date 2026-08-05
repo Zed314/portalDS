@@ -468,8 +468,6 @@ ARM_CODE void collideOBBs(OBB_struct* o1, OBB_struct* o2)
 		}
 	}*/
 	//optimize by working in o2 space ?
-	vect3D vv2[8];
-	getOBBVertices(o2,vv2);
 	vect3D u[3];
 	u[0]=vect(o1->transformationMatrix[0],o1->transformationMatrix[3],o1->transformationMatrix[6]);
 	u[1]=vect(o1->transformationMatrix[1],o1->transformationMatrix[4],o1->transformationMatrix[7]);
