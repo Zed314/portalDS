@@ -223,26 +223,29 @@ u8 checkObjectElevatorCollision(physicsObject_struct* o, room_struct* r, elevato
 
 	if(collideRectangle(o,r,addVect(ev->realPosition,vect(-ELEVATOR_SIZE/2,0,-ELEVATOR_SIZE/2)),vect(ELEVATOR_SIZE,0,ELEVATOR_SIZE)))ret=2;
 
+	//the height test is a subtract and a compare and rejects almost every
+	//call - take it before spending a square root on the lateral distance
+	if(abs(o->position.y-ev->position.y)>ELEVATOR_HEIGHT)return ret;
+
 	vect3D u=vect(o->position.x-ev->position.x,0,o->position.z-ev->position.z);
 	int32 v=magnitude(u);
 
-	if(abs(o->position.y-ev->position.y)>ELEVATOR_HEIGHT)return ret;
-
 	if(ev->state==ELEVATOR_OPEN)
 	{
+		const int32 cosAngle=cosLerp(ELEVATOR_ANGLE);
 		switch(ev->direction&(~(1<<ELEVATOR_UPDOWNBIT)))
 		{
 			case 1:
-				if(u.x<-mulf32(v,cosLerp(ELEVATOR_ANGLE)))return ret;
+				if(u.x<-mulf32(v,cosAngle))return ret;
 				break;
 			case 4:
-				if(u.z>mulf32(v,cosLerp(ELEVATOR_ANGLE)))return ret;
+				if(u.z>mulf32(v,cosAngle))return ret;
 				break;
 			case 5:
-				if(u.z<-mulf32(v,cosLerp(ELEVATOR_ANGLE)))return ret;
+				if(u.z<-mulf32(v,cosAngle))return ret;
 				break;
 			default:
-				if(u.x>mulf32(v,cosLerp(ELEVATOR_ANGLE)))return ret;
+				if(u.x>mulf32(v,cosAngle))return ret;
 				break;
 		}
 	}
