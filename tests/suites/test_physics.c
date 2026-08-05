@@ -347,6 +347,57 @@ static void test_collision_tolerates_null(void)
 	TEST_ASSERT_FALSE(collideRectangle(&o, NULL, vect(0,0,0), vect(0,0,0)));
 }
 
+static void test_the_search_box_reaches_five_radii_along_gravity(void)
+{
+	/*
+	 * Before the distance test, each surface is culled against a box around
+	 * the sphere: one radius to each side, but five along gravity, because
+	 * the weighted test reaches sqrt(transY) times further that way and the
+	 * box must not cut it short. The portals are the observer here - they
+	 * are consulted for every surface that passes the cull - which is what
+	 * tells "culled" apart from "considered and missed": at five radii
+	 * exactly the floor is still considered, one unit further and it is gone.
+	 */
+	portal1.used = true;
+	portal2.used = true;
+	addFloor();
+
+	physicsObject_struct o = playerAt(roomSpace(1536, 5*PLAYERRADIUS, 1536));
+	TEST_ASSERT_FALSE_MESSAGE(checkObjectCollision(&o, &room), "five radii up is outside even the weighted reach");
+	TEST_ASSERT_EQUAL_INT_MESSAGE(2, levelFixtureCounts.portalCollisions,
+		"a floor five radii below should still pass the cull");
+
+	levelFixtureReset();
+	portal1.used = true;
+	portal2.used = true;
+	addFloor();
+
+	physicsObject_struct past = playerAt(roomSpace(1536, 5*PLAYERRADIUS+1, 1536));
+	TEST_ASSERT_FALSE(checkObjectCollision(&past, &room));
+	TEST_ASSERT_EQUAL_INT_MESSAGE(0, levelFixtureCounts.portalCollisions,
+		"past five radii the floor should be culled before the portals are consulted");
+}
+
+static void test_the_cull_only_tests_the_axis_the_surface_is_flat_on(void)
+{
+	/*
+	 * The cull compares a single coordinate: the axis the rectangle has no
+	 * extent along. A sphere level with the floor but far beyond its edge
+	 * passes the cull and is rejected by the distance test instead - the
+	 * closest-point clamp covers the other two axes, so culling them here
+	 * would be redundant work rather than extra safety. Pinned so a
+	 * rewritten cull that quietly becomes a full box test shows up.
+	 */
+	portal1.used = true;
+	portal2.used = true;
+	addFloor();
+
+	physicsObject_struct o = playerAt(roomSpace(6000, 100, 1536));
+	TEST_ASSERT_FALSE(checkObjectCollision(&o, &room));
+	TEST_ASSERT_EQUAL_INT_MESSAGE(2, levelFixtureCounts.portalCollisions,
+		"level with the floor, the cull should hand it to the distance test");
+}
+
 /* --- portals ------------------------------------------------------------- */
 
 static void test_the_portals_are_not_consulted_when_unplaced(void)
@@ -425,6 +476,40 @@ static void test_a_platform_elsewhere_is_not_stood_on(void)
 
 	TEST_ASSERT_FALSE(checkObjectCollision(&o, &room));
 	TEST_ASSERT_FALSE(platform[0].touched);
+}
+
+static void test_a_sphere_rests_on_a_platform_at_the_floor_height(void)
+{
+	/* The platform path goes through collideRectangle rather than through the
+	 * grid, but the arithmetic is shared, so the rest height must be too - or
+	 * stepping from a floor onto a platform would bump the camera. */
+	platform[0].used = true;
+	platform[0].position = roomSpace(1536, 0, 1536);
+
+	physicsObject_struct o = playerAt(roomSpace(1536, 100, 1536));
+	for(int i=0;i<8;i++)checkObjectCollision(&o, &room);
+
+	TEST_ASSERT_EQUAL_INT32_MESSAGE(FLOOR_REST_HEIGHT, o.position.y,
+		"a platform should carry the player at the same height as a floor");
+}
+
+static void test_the_platform_contact_threshold_matches_the_floors(void)
+{
+	/* The exact boundary of the previous test: at the floor rest height the
+	 * surface still reports contact - which is what o->contact and every
+	 * standing-on trigger are built from - and one unit higher it is clear.
+	 * Pinned on collideRectangle directly so the two resolvers cannot drift
+	 * apart. */
+	const vect3D p = vect(-inttof32(1), 0, -inttof32(1));
+	const vect3D s = vect(inttof32(2), 0, inttof32(2));
+
+	physicsObject_struct touching = playerAt(vect(0, FLOOR_REST_HEIGHT, 0));
+	TEST_ASSERT_TRUE_MESSAGE(collideRectangle(&touching, &room, p, s),
+		"the rest height should still be in contact");
+
+	physicsObject_struct clear = playerAt(vect(0, FLOOR_REST_HEIGHT+1, 0));
+	TEST_ASSERT_FALSE_MESSAGE(collideRectangle(&clear, &room, p, s),
+		"one unit above the rest height should be clear");
 }
 
 /* --- the elevator cylinder ----------------------------------------------- */
@@ -825,6 +910,27 @@ static void test_a_floor_still_works_with_gravity_along_x(void)
 	resetGravity();
 }
 
+static void test_a_floor_still_works_with_gravity_along_z(void)
+{
+	/* The z twin of the test above, for the third branch of the axis pick -
+	 * the one an x- and a y-gravity test both leave unexercised. */
+	changeGravity(vect(0, 0, -inttof32(1)), 16);
+
+	/* A wall in the z=2 tile plane, facing +z - the floor, once gravity
+	 * points along -z. */
+	levelFixtureCellAdd(vect(0,0,2), vect(4,4,0), vect(0,0,inttof32(1)));
+
+	/* 500 off the plane, for the reason the x test explains: outside the
+	 * unwidened box, inside the widened one, within the weighted reach. */
+	physicsObject_struct o = playerAt(roomSpace(1536, 100, 2*TILESIZE*2 - 500));
+	const vect3D before = o.position;
+
+	TEST_ASSERT_TRUE_MESSAGE(checkObjectCollision(&o, &room), "the surface was culled once gravity turned");
+	TEST_ASSERT_LESS_THAN_INT32_MESSAGE(before.z, o.position.z, "the surface was found but not resolved against");
+
+	resetGravity();
+}
+
 /* --- room helpers -------------------------------------------------------- */
 
 static void test_a_point_inside_the_room_is_recognised(void)
@@ -910,6 +1016,8 @@ int main(void)
 	RUN_TEST(test_a_point_outside_the_grid_collides_with_nothing);
 	RUN_TEST(test_a_floor_and_a_wall_are_both_resolved);
 	RUN_TEST(test_collision_tolerates_null);
+	RUN_TEST(test_the_search_box_reaches_five_radii_along_gravity);
+	RUN_TEST(test_the_cull_only_tests_the_axis_the_surface_is_flat_on);
 
 	RUN_TEST(test_the_portals_are_not_consulted_when_unplaced);
 	RUN_TEST(test_both_portals_are_consulted_for_each_surface);
@@ -918,6 +1026,8 @@ int main(void)
 	RUN_TEST(test_a_platform_under_the_player_is_collided_with);
 	RUN_TEST(test_an_unused_platform_slot_is_skipped);
 	RUN_TEST(test_a_platform_elsewhere_is_not_stood_on);
+	RUN_TEST(test_a_sphere_rests_on_a_platform_at_the_floor_height);
+	RUN_TEST(test_the_platform_contact_threshold_matches_the_floors);
 
 	RUN_TEST(test_standing_in_the_middle_of_the_shaft_is_untouched);
 	RUN_TEST(test_the_shaft_wall_holds_the_player_in);
@@ -947,6 +1057,7 @@ int main(void)
 
 	RUN_TEST(test_changing_gravity_sets_both_vectors);
 	RUN_TEST(test_a_floor_still_works_with_gravity_along_x);
+	RUN_TEST(test_a_floor_still_works_with_gravity_along_z);
 
 	RUN_TEST(test_a_point_inside_the_room_is_recognised);
 	RUN_TEST(test_a_point_outside_the_room_is_rejected);

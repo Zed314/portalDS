@@ -6,18 +6,22 @@
  * simulated over there, while the player uses this much simpler move-then-push-
  * out scheme, which gives the crisp movement a first-person game needs.
  *
- * checkObjectCollisionCell() is the core: for each rectangle in the cells the
- * object overlaps, it works out how far the sphere has sunk in and corrects the
- * position. The @c if(normGravityVector.x) branches scattered through it are
- * there because "down" is a variable - see @ref changeGravity - so the code
- * cannot assume Y is up.
+ * resolveSphereSurface() is the core: given the vector to the closest point of
+ * a surface, it works out how far the sphere has sunk in and corrects the
+ * position. checkObjectCollisionCell() feeds it every rectangle in the grid
+ * cell the object stands in; collideRectangle() feeds it a bare rectangle for
+ * the surfaces that are not room geometry - platforms and elevator floors.
+ * The @c if(normGravityVector.x) branches are there because "down" is a
+ * variable - see @ref changeGravity - so the code cannot assume Y is up.
  *
  * checkObjectElevatorCollision() is the odd one out: an elevator is a cylinder
  * the player must be kept *inside* rather than outside, which is the inverse of
  * every other case in the file.
  *
- * The author's own note at the top of checkObjectCollisionCell() about wanting
- * to refactor this and switch to octrees is left in place.
+ * The author's note that used to sit here wished for octrees. The room grid
+ * stays: rooms are flat grids of tiles, getCurrentCell() already narrows the
+ * work to one cell's worth of rectangles, and a tree buys nothing over that
+ * for geometry this shape.
  */
 
 #include "game/game_main.h"
@@ -26,15 +30,11 @@
 #define PLAYERSIZEY2 (TILESIZE)
 #define PLAYERSIZEX (TILESIZE-32)
 
-#define BOXNUM 10
-
 #define ELEVATOR_RADIUS_IN (TILESIZE*2-64)
 #define ELEVATOR_RADIUS_OUT (TILESIZE*2+128)
 #define ELEVATOR_HEIGHT (TILESIZE*16)
 
 #define ELEVATOR_ANGLE (3084)
-
-//extern platform_struct platform[NUMPLATFORMS];
 
 vect3D gravityVector=(vect3D){0,-16,0};
 vect3D normGravityVector=(vect3D){0,-4096,0};
@@ -103,74 +103,97 @@ static vect3D degenerateEscape(physicsObject_struct* o)
 	return vectMult(divideVect(back,l),o->radius);
 }
 
-//TODO : refactor/clean up this shit, maybe switch to octrees ?
+/**
+ * @brief Tests a sphere against a surface's closest point and pushes it out.
+ *
+ * The one piece of arithmetic every surface in this file goes through, whether
+ * it arrived via the room grid or as a bare rectangle. @p v is the vector from
+ * the object's centre to the closest point of the surface.
+ *
+ * The distance test is weighted: the component along gravity is divided by
+ * transY, so the sphere reaches sqrt(transY) times further towards a floor
+ * than towards a wall. That asymmetry is deliberate - it is what holds the
+ * camera a comfortable height above the ground while letting the player stand
+ * a bare radius from a wall.
+ *
+ * The overlap test runs at 64 bit and rounds once; the push-out length keeps
+ * its raw sum of squares so that sqrtf32's <<12 lands it on the same scale as
+ * @c radius<<6.
+ *
+ * @param o object being resolved; its position is corrected in place.
+ * @param v centre-to-closest-point vector, in any space - only the difference matters.
+ * @return true if the sphere overlapped and was moved.
+ */
+static bool resolveSphereSurface(physicsObject_struct* o, vect3D v)
+{
+	const int32 gval=dotProduct(v,normGravityVector);
+	const vect3D lateral=vectDifference(v,vectMult(normGravityVector,gval));
+	const int64_t sqLateral=(int64_t)lateral.x*lateral.x
+	                       +(int64_t)lateral.y*lateral.y
+	                       +(int64_t)lateral.z*lateral.z;
+
+	const int32 sqd=(int32)(sqLateral>>12)+div64((int64_t)gval*gval,transY);
+	if(sqd>=o->sqRadius)return false;
+
+	const int32 sqRaw=(int32)(sqLateral+divf32(gval*gval,transY));
+	const u32 d=sqrtf32(sqRaw);
+	if(d)v=divideVect(vectMult(v,-((o->radius<<6)-d)),d);
+	else v=degenerateEscape(o); //centre exactly on the surface
+	o->position=addVect(o->position,v);
+	return true;
+}
+
 bool checkObjectCollisionCell(gridCell_struct* gc, physicsObject_struct* o, room_struct* r)
 {
 	if(!gc || !o || !r)return false;
-	vect3D o1=vectDifference(o->position,convertVect(vect(r->position.x,0,r->position.y)));
 
-	vect3D vmM=vect(o->radius,o->radius,o->radius);
+	const vect3D roomOrigin=convertVect(vect(r->position.x,0,r->position.y));
+	vect3D o1=vectDifference(o->position,roomOrigin);
 
-	//dirty dirty dirty
-	if(normGravityVector.x)vmM.x*=5;
-	else if(normGravityVector.y)vmM.y*=5;
-	else vmM.z*=5;
-
-	vect3D M=addVect(o1,vmM);
-	vect3D m=vectDifference(o1,vmM);
+	//The cull box: one radius to each side, but five along gravity, because
+	//the weighted test in resolveSphereSurface reaches sqrt(transY) times
+	//further that way and the box must not cut it short.
+	vect3D reach=vect(o->radius,o->radius,o->radius);
+	if(normGravityVector.x)reach.x*=5;
+	else if(normGravityVector.y)reach.y*=5;
+	else reach.z*=5;
 
 	int i;
-	int k=0;
 	bool ret=false;
 	for(i=0;i<gc->numRectangles;i++)
 	{
 		rectangle_struct* rec=gc->rectangles[i];
-		if(rec->collides)
+		if(!rec->collides)continue;
+
+		//Cull on a single axis: the one the rectangle has no extent along.
+		//The closest-point clamp below covers the other two.
+		const vect3D p=vect(rec->position.x*TILESIZE*2,rec->position.y*HEIGHTUNIT,rec->position.z*TILESIZE*2);
+		if(!rec->size.x)
 		{
-			vect3D p=vect(rec->position.x*TILESIZE*2,rec->position.y*HEIGHTUNIT,rec->position.z*TILESIZE*2);
-			if(!rec->size.x)
-			{
-				if(p.x<m.x || p.x>M.x)continue;
-			}else if(!rec->size.y)
-			{
-				if(p.y<m.y || p.y>M.y)continue;
-			}else{
-				if(p.z<m.z || p.z>M.z)continue;
-			}
-			k++;
-			vect3D o2=getClosestPointRectangleStruct(rec,o1);
-				if(portal1.used&&portal2.used)
-				{
-					o2=addVect(o2,convertVect(vect(r->position.x,0,r->position.y)));
-					collidePortal(r,rec,&portal1,&o2);
-					collidePortal(r,rec,&portal2,&o2);
-					o2=vectDifference(o2,convertVect(vect(r->position.x,0,r->position.y)));
-				}
-			vect3D v=vectDifference(o2,o1);
-			rec->touched=false;
-			// int sqd=sqMagnitude(v);
-			int32 gval=dotProduct(v,normGravityVector);
-			vect3D v2=vectDifference(v,vectMult(normGravityVector,gval));
-			//int32 sqd=mulf32(v2.x,v2.x)+mulf32(v2.y,v2.y)+mulf32(v2.z,v2.z)+divf32(mulf32(gval,gval),transY);
-			int64_t squaredMagnitude=(int64_t)v2.x*v2.x
-                                    +(int64_t)v2.y*v2.y
-                                    +(int64_t)v2.z*v2.z;
-            int32_t sqd=squaredMagnitude>>12;
-            sqd+=div64((int64_t)gval*gval,transY);
-			if(sqd < o->sqRadius)
-			{
-				// sqd=v.x*v.x+v.y*v.y+v.z*v.z;
-				int32 sqd=squaredMagnitude+divf32(gval*gval,transY);
-				u32 d=sqrtf32((sqd));
-				if(d)v=divideVect(vectMult(vect(v.x,v.y,v.z),-((o->radius<<6)-d)),d);
-				else v=degenerateEscape(o); //centre exactly on the surface
-				o->position=addVect(o->position,v);
-				o1=vectDifference(o->position,convertVect(vect(r->position.x,0,r->position.y)));
-				M=addVect(o1,vmM);
-				m=vectDifference(o1,vmM);
-				rec->touched=true;
-				ret=true;
-			}
+			if(p.x<o1.x-reach.x || p.x>o1.x+reach.x)continue;
+		}else if(!rec->size.y)
+		{
+			if(p.y<o1.y-reach.y || p.y>o1.y+reach.y)continue;
+		}else{
+			if(p.z<o1.z-reach.z || p.z>o1.z+reach.z)continue;
+		}
+
+		vect3D closest=getClosestPointRectangleStruct(rec,o1);
+		if(portal1.used&&portal2.used)
+		{
+			//collidePortal works in world space; this is what keeps a surface
+			//with a portal in it from pushing the player back out of the hole.
+			closest=addVect(closest,roomOrigin);
+			collidePortal(r,rec,&portal1,&closest);
+			collidePortal(r,rec,&portal2,&closest);
+			closest=vectDifference(closest,roomOrigin);
+		}
+
+		rec->touched=resolveSphereSurface(o,vectDifference(closest,o1));
+		if(rec->touched)
+		{
+			o1=vectDifference(o->position,roomOrigin);
+			ret=true;
 		}
 	}
 	return ret;
@@ -179,21 +202,8 @@ bool checkObjectCollisionCell(gridCell_struct* gc, physicsObject_struct* o, room
 bool collideRectangle(physicsObject_struct* o, room_struct* r, vect3D p, vect3D s)
 {
 	if(!o||!r)return false;
-	vect3D o2=getClosestPointRectangle(p,s,o->position);
-	vect3D v=vectDifference(o2,o->position);
-	int32 gval=dotProduct(v,normGravityVector);
-	vect3D v2=vectDifference(v,vectMult(normGravityVector,gval));
-	int32 sqd=mulf32(v2.x,v2.x)+mulf32(v2.y,v2.y)+mulf32(v2.z,v2.z)+divf32(mulf32(gval,gval),transY);
-	if(sqd<o->sqRadius)
-	{
-		int32 sqd=(v2.x*v2.x)+(v2.y*v2.y)+(v2.z*v2.z)+divf32(gval*gval,transY);
-		u32 d=sqrtf32((sqd));
-		if(d)v=divideVect(vectMult(vect(v.x,v.y,v.z),-((o->radius<<6)-d)),d);
-		else v=degenerateEscape(o); //centre exactly on the surface
-		o->position=addVect(o->position,v);
-		return true;
-	}
-	return false;
+	vect3D closest=getClosestPointRectangle(p,s,o->position);
+	return resolveSphereSurface(o,vectDifference(closest,o->position));
 }
 
 u8 checkObjectElevatorCollision(physicsObject_struct* o, room_struct* r, elevator_struct* ev)
