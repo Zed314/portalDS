@@ -226,8 +226,11 @@ vect3D projectPoint(camera_struct* c, vect3D p)
 	// screen_x = (xx+ww)*viewport_width / (2*ww) + viewport_x1
 	// screen_y = (yy+ww)*viewport_height / (2*ww) + viewport_y1
 
-	v.x=divf32(v.x+(w),(w)*2)*128/2048;
-	v.y=192-divf32(v.y+(w),(w)*2)*96/2048;
+	//one reciprocal instead of two divisions by the same 2w; at most 0.06 of
+	//a pixel from what dividing twice produced.
+	const int32 iw=divf32(inttof32(1),(w)*2);
+	v.x=mulf32(v.x+(w),iw)*128/2048;
+	v.y=192-mulf32(v.y+(w),iw)*96/2048;
 	v.z=0;
 	// v.z=divf32(v.z+(w),(w)*2);
 

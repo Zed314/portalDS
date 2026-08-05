@@ -567,10 +567,16 @@ void updateFrustum(camera_struct* c)
     for(i=0;i<6;i++)
     {
         int32 r=sqrtf32(mulf32(f->plane[i].A,f->plane[i].A)+mulf32(f->plane[i].B,f->plane[i].B)+mulf32(f->plane[i].C,f->plane[i].C));
-        f->plane[i].A=divf32(f->plane[i].A,r);
-        f->plane[i].B=divf32(f->plane[i].B,r);
-        f->plane[i].C=divf32(f->plane[i].C,r);
-        f->plane[i].D=divf32(f->plane[i].D,r);
+        //one reciprocal per plane instead of four divisions by the same r.
+        //24 fractional bits keep the normalized coefficients within one bit
+        //of what divf32 produced. The r guard only skips what would have
+        //been four divisions by zero.
+        if(r<32)continue;
+        const int32 rinv=(int32)div64(((int64_t)1)<<36,r);
+        f->plane[i].A=(int32)(((int64_t)f->plane[i].A*rinv)>>24);
+        f->plane[i].B=(int32)(((int64_t)f->plane[i].B*rinv)>>24);
+        f->plane[i].C=(int32)(((int64_t)f->plane[i].C*rinv)>>24);
+        f->plane[i].D=(int32)(((int64_t)f->plane[i].D*rinv)>>24);
         f->plane[i].point.x=-mulf32(f->plane[i].D,f->plane[i].A);
         f->plane[i].point.y=-mulf32(f->plane[i].D,f->plane[i].B);
         f->plane[i].point.z=-mulf32(f->plane[i].D,f->plane[i].C);
