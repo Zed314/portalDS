@@ -86,21 +86,16 @@ vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v, int32 d);
 void clipSegmentPlane(plane_struct* pl, polygon_struct** o, polygon_struct* pp1, polygon_struct* pp2);
 
 /**
- * @brief Projects a polygon and generates texture coordinates for it.
+ * @brief Clips a polygon against the camera frustum and projects it to screen.
  *
- * The texture coordinates map the portal's captured screen image onto its
- * outline, which is why this needs the portal's own axes rather than just a
- * matrix.
+ * It used to also generate texture coordinates mapping the portal's captured
+ * screen image onto its outline, fed by the portal's own axes; that block is
+ * commented out in the implementation and its parameters are gone with it.
  *
  * @param c  camera to project through.
  * @param p  in/out: polygon to project.
- * @param o  origin of the texture coordinate frame.
- * @param u1 first axis of that frame.
- * @param u2 second axis.
- * @param d1 extent along @p u1.
- * @param d2 extent along @p u2.
  */
-void projectPolygon(camera_struct* c, polygon_struct** p, vect3D o, vect3D u1, vect3D u2, int32 d1, int32 d2);
+void projectPolygon(camera_struct* c, polygon_struct** p);
 
 /**
  * @brief Builds a ring between two concentric ellipses - the portal's coloured rim.

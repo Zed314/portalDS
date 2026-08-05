@@ -410,8 +410,8 @@ polygon_struct* createEllipseOutline(vect3D po, vect3D v1_1, vect3D v2_1, vect3D
 
 void drawPolygon(polygon_struct* p) { (void)p; }
 void drawPolygonStrip(polygon_struct* p, u16 c1, u16 c2) { (void)p;(void)c1;(void)c2; }
-void projectPolygon(camera_struct* c, polygon_struct** p, vect3D o, vect3D u1, vect3D u2, int32 d1, int32 d2)
-{ (void)c;(void)p;(void)o;(void)u1;(void)u2;(void)d1;(void)d2; }
+void projectPolygon(camera_struct* c, polygon_struct** p)
+{ (void)c;(void)p; }
 void initPolygonPool(void) {}
 void freePolygon(polygon_struct** p) { if(p)*p=NULL; }
 

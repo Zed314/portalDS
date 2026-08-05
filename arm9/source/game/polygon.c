@@ -234,7 +234,7 @@ vect3D projectPoint(camera_struct* c, vect3D p)
 	return v;
 }
 
-void projectPolygon(camera_struct* c, polygon_struct** p, vect3D o, vect3D u1, vect3D u2, int32 d1, int32 d2)
+void projectPolygon(camera_struct* c, polygon_struct** p)
 {
 	if(!p)return;
 	if(!c)c=&playerCamera;
@@ -245,6 +245,8 @@ void projectPolygon(camera_struct* c, polygon_struct** p, vect3D o, vect3D u1, v
 
 	while(pp)
 	{
+		//the texture coordinate frame this used to compute per vertex is what
+		//the o/u1/u2/d1/d2 parameters carried; when it comes back, so do they
 		// vect3D vr=vectDifference(pp->v,o);
 		// pp->t=vect(dotProduct(vr,u1),dotProduct(vr,u2),0);
 		// pp->t.x=(pp->t.x*inttot16(127))/d1;
