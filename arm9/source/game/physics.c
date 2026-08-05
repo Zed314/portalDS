@@ -69,7 +69,12 @@ vect3D convertCoord(room_struct* r, vect3D p)
 	return rp;
 }
 
-const int32 transY=inttof32(5);
+/** How many times further (squared) the sphere reaches along gravity than
+ *  laterally. Kept as a plain integer so resolveSphereSurface can divide by it
+ *  with a compile-time-constant division - a multiply-high sequence - instead
+ *  of a hardware divider call per rectangle. */
+#define TRANSY_UNITS 5
+const int32 transY=inttof32(TRANSY_UNITS);
 
 /**
  * @brief Correction to apply when an object's centre lands exactly on a surface.
@@ -132,10 +137,14 @@ static bool resolveSphereSurface(physicsObject_struct* o, vect3D v)
 	                       +(int64_t)lateral.y*lateral.y
 	                       +(int64_t)lateral.z*lateral.z;
 
-	const int32 sqd=(int32)(sqLateral>>12)+div64((int64_t)gval*gval,transY);
+	//dividing by the constant TRANSY_UNITS instead of calling div64/divf32
+	//with transY is arithmetically identical here (gval*gval>=0) and keeps
+	//the most-executed division of the frame off the hardware divider.
+	const int64_t sqGval=(int64_t)gval*gval;
+	const int32 sqd=(int32)(sqLateral>>12)+(int32)(sqGval>>12)/TRANSY_UNITS;
 	if(sqd>=o->sqRadius)return false;
 
-	const int32 sqRaw=(int32)(sqLateral+divf32(gval*gval,transY));
+	const int32 sqRaw=(int32)(sqLateral+(int32)sqGval/TRANSY_UNITS);
 	const u32 d=sqrtf32(sqRaw);
 	if(d)v=divideVect(vectMult(v,-((o->radius<<6)-d)),d);
 	else v=degenerateEscape(o); //centre exactly on the surface
