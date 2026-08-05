@@ -106,6 +106,18 @@ void setFog(u8 intensity)
 //defined further down, next to renderGun which is the rest of its story
 static void clearMuzzleParticles(void);
 
+/**
+ * Tints the gun and the player body to the active portal colour. Palette
+ * writes remap VRAM bank E, so this runs only when the colour actually
+ * changes: at init and on a bottom-button toggle, never per frame.
+ */
+static void applyGunTint(player_struct* p)
+{
+	const u16 color=currentPortalColor?(RGB15(31,16,0)):(RGB15(0,12,31));
+	editPalette((u16*)p->modelInstance.model->texture->pal,0,color); //TEMP?
+	editPalette((u16*)p->playerModelInstance.model->texture->pal,0,color); //TEMP?
+}
+
 void initPlayer(player_struct* p)
 {
 	if(!p)p=&player;
@@ -165,6 +177,7 @@ void initPlayer(player_struct* p)
 
 	currentPortalColor=true;
 	drawBottomButton(currentPortalColor);
+	applyGunTint(p);
 }
 
 void drawBottomButton(bool color)
@@ -557,6 +570,7 @@ void playerControls(player_struct* p)
     {
         currentPortalColor^=1;
         drawBottomButton(currentPortalColor);
+        applyGunTint(p);
         touchCnt=0;
 
     }
@@ -656,9 +670,6 @@ void updatePlayer(player_struct* p)
 
 	if(p->inPortal && !p->oldInPortal)playSFX(portalEnterSFX[rand()%2]);
 	else if(!p->inPortal && p->oldInPortal)playSFX(portalExitSFX[rand()%2]);
-
-	editPalette((u16*)p->modelInstance.model->texture->pal,0,currentPortalColor?(RGB15(31,16,0)):(RGB15(0,12,31))); //TEMP?
-	editPalette((u16*)p->playerModelInstance.model->texture->pal,0,currentPortalColor?(RGB15(31,16,0)):(RGB15(0,12,31))); //TEMP?
 
 	collidePlayer(p,p->currentRoom);
 	if(!p->inPortal && collideAABBSludge(p->object->position, vect(PLAYERRADIUS,PLAYERRADIUS,PLAYERRADIUS)))p->life=-5;
