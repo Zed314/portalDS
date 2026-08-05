@@ -513,8 +513,17 @@ void AARsOBBContacts(OBB_struct* o, bool sleep)
     {
         u16 x=0;u16 X=0;u16 z=0;u16 Z=0;
         getOBBNodes(NULL, o, &x, &X, &z, &Z);
-        int8_t lalala[NUMAARS];
-        for(int i=0;i<NUMAARS;i++)lalala[i]=0;
+        //A rectangle can sit in several grid cells, so contacts must only be
+        //taken once per rectangle per call. Marking with a generation counter
+        //instead of a cleared bool array avoids zeroing all NUMAARS entries on
+        //every call - only the (rare) counter wrap pays for a full clear.
+        static u16 visited[NUMAARS];
+        static u16 generation=0;
+        if(++generation==0)
+        {
+            for(int i=0;i<NUMAARS;i++)visited[i]=0;
+            generation=1;
+        }
         o->groundID=-1;
         for(int i=x;i<=X;i++)
         {
@@ -538,17 +547,17 @@ void AARsOBBContacts(OBB_struct* o, bool sleep)
                     const u16 old=o->numContactPoints;
                     const u16 rect=n->data[k];
 
-                    if(!lalala[rect])
+                    if(visited[rect]!=generation)
                     {
                         AAROBBContacts(&aaRectangles[rect], o, v, port);
                     }
-                    if(o->groundID<0 
-                    && o->numContactPoints>old 
+                    if(o->groundID<0
+                    && o->numContactPoints>old
                     && aaRectangles[rect].normal.y>0)
                     {
                         o->groundID=rect;
                     }
-                    lalala[rect]=1;
+                    visited[rect]=generation;
                 }
             }
         }
