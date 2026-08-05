@@ -152,9 +152,7 @@ void menuFrame(void)
 
 
 	if(!(keysHeld() & KEY_TOUCH)) updateSimpleGui(-1, -1);
-	//else  updateSimpleGui((float)(currentTouch.rawx)*256.0/(4080.0), (float)(currentTouch.rawy)*192.0/3072.0);
-	//TODO make this work, code above ugly (not taking into account calibration data of touch)
-	else  updateSimpleGui((float)(currentTouch.px), (float)(currentTouch.py));
+	else updateSimpleGui(currentTouch.px, currentTouch.py);
 
 	/**
 	 * Moves camera
