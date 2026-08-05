@@ -94,8 +94,17 @@ void collidePlayer(player_struct* p, room_struct* r)
 	collideObjectRoom(p->object,r);
 }
 
+/** Last intensity written to the fog registers; -1 forces the next setFog
+ *  through, which initPlayer relies on after the GL state has been rebuilt. */
+static s16 fogIntensity=-1;
+
 void setFog(u8 intensity)
 {
+	//called every frame with (127-life)/2, which is 0 the whole time the
+	//player is unhurt - skip the 32 density register writes when nothing
+	//changed.
+	if(intensity==fogIntensity)return;
+	fogIntensity=intensity;
 	glEnable(GL_FOG);
 	glFogShift(2);
 	glFogColor(31,0,0,31);
@@ -173,6 +182,7 @@ void initPlayer(player_struct* p)
 	gravityGunTarget=-1;
 
 	//TEST TEMP
+	fogIntensity=-1; //the GL context was rebuilt; write the registers again
 	setFog(0);
 
 	currentPortalColor=true;
