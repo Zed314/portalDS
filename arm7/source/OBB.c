@@ -168,12 +168,12 @@ void copyOBB(OBB_struct* o1, OBB_struct* o2)
 	o2->energy=o1->energy;
 	o2->sleep=o1->sleep;
 
-	//temporary
+	//every OBB shares the one global contactPoints buffer, so pointing o2 at
+	//it carries the list o1 just counted - there is nothing to copy.
 	o2->contactPoints=contactPoints;
 	memcpy(o2->transformationMatrix,o1->transformationMatrix,sizeof(int32_t)*9);
 	memcpy(o2->invInertiaMatrix,o1->invInertiaMatrix,sizeof(int32_t)*9);
 	memcpy(o2->invWInertiaMatrix,o1->invWInertiaMatrix,sizeof(int32_t)*9);
-	memcpy(o2->contactPoints,o1->contactPoints,sizeof(contactPoint_struct)*o2->numContactPoints);
 }
 
 bool collideAABB(vect3D o1, vect3D s1, vect3D o2, vect3D s2)
@@ -902,39 +902,18 @@ ARM_CODE static void simulate(OBB_struct* o, int32_t dt2)
 	{
 		while(currentTime<dt)
 		{
-			OBB_struct bkp;
-			copyOBB(o,&bkp);
 			integrate(o,(targetTime-currentTime));
 			checkOBBCollisions(o, false);
-			// maxPenetration is always 0, so this branch never runs and the
-			// timestep is never bisected. Its only two writers are the
-			// commented out block in collideOBBs and planeOBBContacts, whose
-			// sole call site in checkOBBCollisions is also commented out.
-			// Reviving it is a physics change - contacts would start being
-			// resolved near the time of impact rather than at the end of the
-			// step - so it wants play testing, not just uncommenting.
-			if(o->numContactPoints && o->maxPenetration>PENETRATIONTHRESHOLD)
-			{
-				targetTime=(currentTime+targetTime)/2;
-				copyOBB(&bkp,o);
-				if( (targetTime-currentTime)<=((int32_t)(0.000001f*(1ll<<32))) )
-				{
-					// printf("desp impulse\n");
-					checkOBBCollisions(o, false);
-					applyOBBImpulses(o);
-					currentTime=targetTime;
-					targetTime=dt;
-				}
-			}else if(o->numContactPoints)
-			{
-				// printf("impulse\n");
-				applyOBBImpulses(o);
-				currentTime=targetTime;
-				targetTime=dt;
-			}else{
-				currentTime=targetTime;
-				targetTime=dt;
-			}
+			// There used to be a timestep bisection here, rolling back to a
+			// copyOBB backup when maxPenetration exceeded its threshold. Its
+			// writers were already commented out, so the branch never ran and
+			// the backup was 40 dead struct copies a frame; both are gone (see
+			// git history). Reviving it is a physics change - contacts would
+			// start being resolved near the time of impact rather than at the
+			// end of the step - so it wants play testing, not just restoring.
+			if(o->numContactPoints)applyOBBImpulses(o);
+			currentTime=targetTime;
+			targetTime=dt;
 		}
 		// collideSpherePlatforms(&o->position,o->size.x-8);
 	}else 
