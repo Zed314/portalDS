@@ -92,6 +92,7 @@ ARM_CODE void initOBB(OBB_struct* o, vect3D size, vect3D pos, int32_t mass, s32 
 	o->numContactPoints=0;
 	o->size=size;
 	o->mass=mass;
+	o->invMass=divv16(inttof32(1),mass);
 	o->maxPenetration=0;
 
 	o->energy=0;
@@ -156,6 +157,7 @@ void copyOBB(OBB_struct* o1, OBB_struct* o2)
 	o2->angularMomentum=o1->angularMomentum;
 	o2->numContactPoints=o1->numContactPoints;
 	o2->mass=o1->mass;
+	o2->invMass=o1->invMass;
 	o2->position=o1->position;
 	o2->size=o1->size;
 	o2->maxPenetration=o1->maxPenetration;
@@ -637,8 +639,7 @@ ARM_CODE void applyOBBImpulsePlane(OBB_struct* o, u8 pID)
 	const int32_t CoefficientOfRestitution=floattof32(0.2f);
 
 	int32_t iN=-mulf32((floattof32(1)+CoefficientOfRestitution),dotProduct(v,cp->normal));
-	//int32 invMass=divf32(inttof32(1),o->mass);
-	int32_t invMass=divv16(inttof32(1),o->mass);
+	const int32_t invMass=o->invMass;
 	int32_t iD=invMass+dotProduct(vectProduct(evalVectMatrix33(o->invWInertiaMatrix,vectProduct(r,cp->normal)),r),cp->normal);
     //iN=divf32(iN,iD);
     iN=divv16(iN,iD);
@@ -705,10 +706,8 @@ ARM_CODE void applyOBBImpulseOBB(OBB_struct* o, u8 pID)
 	const int32_t CoefficientOfRestitution=floattof32(0.5f);
 
 	int32_t iN=-mulf32((floattof32(1)+CoefficientOfRestitution),dotProduct(dv,cp->normal));
-	//int32 invMass1=divf32(inttof32(1),o->mass);
-	//int32 invMass2=divf32(inttof32(1),o2->mass);
-	int32_t invMass1=divv16(inttof32(1),o->mass);
-	int32_t invMass2=divv16(inttof32(1),o2->mass);
+	const int32_t invMass1=o->invMass;
+	const int32_t invMass2=o2->invMass;
 	int32_t iD=invMass1+invMass2+dotProduct(addVect(vectProduct(evalVectMatrix33(o->invWInertiaMatrix,vectProduct(r1,cp->normal)),r1),vectProduct(evalVectMatrix33(o2->invWInertiaMatrix,vectProduct(r2,cp->normal)),r2)),cp->normal);
 	//iN=divf32(iN,iD);
 	iN=divv16(iN,iD);
@@ -810,9 +809,9 @@ ARM_CODE static void integrate(OBB_struct* o, int32_t DT)
     int32_t fx=((int64_t)o->forces.x*DT)>>32;
     int32_t fy=((int64_t)o->forces.y*DT)>>32;
     int32_t fz=((int64_t)o->forces.z*DT)>>32;
-    int32_t nvx=vx+(int32_t)((fx<<12)/o->mass);
-    int32_t nvy=vy+(int32_t)((fy<<12)/o->mass);
-    int32_t nvz=vz+(int32_t)((fz<<12)/o->mass);
+    int32_t nvx=vx+mulf32(fx,o->invMass);
+    int32_t nvy=vy+mulf32(fy,o->invMass);
+    int32_t nvz=vz+mulf32(fz,o->invMass);
     int32_t dx=((int64_t)(vx+nvx)*DT)>>32;
     int32_t dy=((int64_t)(vy+nvy)*DT)>>32;
     int32_t dz=((int64_t)(vz+nvz)*DT)>>32;

@@ -109,6 +109,7 @@ extern contactPoint_struct contactPoints[MAXCONTACTPOINTS];
 typedef struct
 {
 	int32 mass;                  /**< Body mass, f32. */
+	int32 invMass;               /**< 1/mass, f32; cached by initOBB so contact and integration code never divides by it. */
 	int32 transformationMatrix[9]; /**< Orientation, row-major 3x3, columns are the box's local axes. */ //3x3
 	int32 invInertiaMatrix[9];   /**< Inverse inertia tensor in body space (constant, diagonal). */ //3x3
 	int32 invWInertiaMatrix[9];  /**< Inverse inertia tensor rotated into world space; recomputed each integration. */ //3x3
