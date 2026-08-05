@@ -71,6 +71,14 @@ void initMenuScene(void)
 	loadMd2Model("menu/lairv2.md2","gladoslair.pcx",&lairModel);
 	loadMd2Model("models/cube.md2","storagecube.pcx",&cubeModel);
 
+	//without display lists these render through the CPU immediate-mode path
+	//in renderModelFrameInterp - the lair alone is 713 triangles a frame.
+	//GLaDOS stays on that path deliberately: she is the one animated model
+	//here, and baking her 46 frames would cost hundreds of KB.
+	generateModelDisplayLists(&domeModel, false, 1);
+	generateModelDisplayLists(&lairModel, false, 1);
+	generateModelDisplayLists(&cubeModel, false, 1);
+
 	initModelInstance(&GLaDOSmodelInstance,&GLaDOSmodel);
 	changeAnimation(&GLaDOSmodelInstance,1,false);
 }
