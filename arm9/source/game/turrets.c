@@ -205,9 +205,10 @@ void updateTurret(turret_struct* t)
 
 	if(!t->OBB || !t->OBB->used){t->OBB=NULL;t->used=false;return;}
 
-	t->counter+=2;t->counter%=63; //TEMP
+	t->counter+=2;if(t->counter>=63)t->counter-=63; //TEMP
 	if(t->dead)t->counter=31;
-	editPalette((u16*)t->OBB->modelInstance.palette,0,RGB15(abs(31-t->counter),0,0)); //TEMP
+	//the glow palette write itself happens batched in updateTurrets, so the
+	//VRAM bank is remapped once per frame rather than once per turret
 
 	int32* m=t->OBB->transformationMatrix;
 	room_struct* r=getPlayer()->currentRoom;
@@ -326,11 +327,27 @@ void updateTurret(turret_struct* t)
 void updateTurrets(void)
 {
 	int i;
+	bool any=false;
 	for(i=0;i<NUMTURRETS;i++)
 	{
 		if(turrets[i].used)
 		{
 			updateTurret(&turrets[i]);
+			any=true;
 		}
 	}
+	if(!any)return;
+
+	//one VRAM bank E round trip for every turret's pulsing glow, instead of
+	//the one editPalette would pay per turret
+	vramSetBankE(VRAM_E_LCD);
+	for(i=0;i<NUMTURRETS;i++)
+	{
+		turret_struct* t=&turrets[i];
+		if(t->used && t->OBB && t->OBB->modelInstance.palette)
+		{
+			((u16*)t->OBB->modelInstance.palette)[0]=RGB15(abs(31-t->counter),0,0); //TEMP
+		}
+	}
+	vramSetBankE(VRAM_E_TEX_PALETTE);
 }
