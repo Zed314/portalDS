@@ -187,7 +187,10 @@ bool checkObjectCollisionCell(gridCell_struct* gc, physicsObject_struct* o, room
 			if(p.z<o1.z-reach.z || p.z>o1.z+reach.z)continue;
 		}
 
-		vect3D closest=getClosestPointRectangleStruct(rec,o1);
+		//p is already the rectangle's world position - calling the Struct
+		//variant would derive it a second time for every rectangle
+		const vect3D s=vect(rec->size.x*TILESIZE*2,rec->size.y*HEIGHTUNIT,rec->size.z*TILESIZE*2);
+		vect3D closest=getClosestPointRectangle(p,s,o1);
 		if(portal1.used&&portal2.used)
 		{
 			//collidePortal works in world space; this is what keeps a surface
@@ -198,8 +201,11 @@ bool checkObjectCollisionCell(gridCell_struct* gc, physicsObject_struct* o, room
 			closest=vectDifference(closest,roomOrigin);
 		}
 
-		rec->touched=resolveSphereSurface(o,vectDifference(closest,o1));
-		if(rec->touched)
+		const bool touched=resolveSphereSurface(o,vectDifference(closest,o1));
+		//only write on a change - the store dirties the rectangle's cache
+		//line, and the vast majority of rectangles stay untouched
+		if(rec->touched!=touched)rec->touched=touched;
+		if(touched)
 		{
 			o1=vectDifference(o->position,roomOrigin);
 			ret=true;
