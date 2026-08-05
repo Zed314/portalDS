@@ -894,7 +894,10 @@ ARM_CODE static void simulate(OBB_struct* o, int32_t dt2)
     int32_t dt=dt2*(1<<20);
     int32_t currentTime=0;
     int32_t targetTime=dt;
-	applyOBBForce(o,o->position,vect(0,-inttof32(2),0)); //gravity
+	//gravity acts through the centre of mass, so the applyOBBForce lever arm
+	//would be exactly zero - add it to the force accumulator directly rather
+	//than paying a cross product for a guaranteed-zero torque.
+	o->forces.y-=inttof32(2);
 	//o->forces=addVect(o->forces,vectDivInt(o->velocity,-25)); //some weird friction force?
 	//o->moment=addVect(o->moment,vectDivInt(o->angularVelocity,-20));//another weird friction?
 	if(!o->sleep)
