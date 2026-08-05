@@ -61,7 +61,6 @@ typedef struct
 	physicsObject_struct* object;/**< Collision sphere; shared with the camera. */
 	modelInstance_struct modelInstance;      /**< The portal gun model, drawn in first person. */
 	modelInstance_struct playerModelInstance;/**< The player's own body, visible through portals. */
-	bool currentPortal;          /**< Which portal the next shot places: false blue, true orange. */
 	bool inPortal;               /**< True while the player straddles a portal. */
 	bool oldInPortal;            /**< ::inPortal last frame; a change is what triggers the teleport. */
 	s16 life;                    /**< Health; reaching zero restarts the chamber. */

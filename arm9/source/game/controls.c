@@ -22,9 +22,6 @@
 
 u8 touchCnt;
 
-extern bool currentPortalColor;
-extern SFX_struct *gunSFX1, *gunSFX2;
-
 typedef enum
 {
     CONTROL_FORWARD,

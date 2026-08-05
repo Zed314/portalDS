@@ -33,6 +33,17 @@
 portal_struct portal1, portal2;
 portal_struct* currentPortal;
 
+/**
+ * The colour-to-portal pairing everything relies on: the shot placement in
+ * shootPlayerGun, the firing sound pick in controls.c, the gun tint and the
+ * touch button. It has to agree with the colours initPortals paints, which is
+ * why it lives next to them.
+ */
+portal_struct* portalForColor(bool orange)
+{
+	return orange?(&portal1):(&portal2);
+}
+
 
 void initPortals(void)
 {

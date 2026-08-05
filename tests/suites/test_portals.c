@@ -341,6 +341,37 @@ static void test_stepping_out_of_a_portal_triggers_the_sound_once(void)
 	TEST_ASSERT_EQUAL_INT_MESSAGE(0, soundTriggersOver(30), "and then stop");
 }
 
+/* --- the colour-to-portal pairing ---------------------------------------- */
+
+static void test_the_orange_shot_fills_portal1_and_the_blue_portal2(void)
+{
+	/*
+	 * portalForColor is the one place the pairing lives: shootPlayerGun
+	 * places its shot through it, and the firing sound, the gun tint and the
+	 * touch button all assume the same convention - true is orange is
+	 * portal1. Pinned by pointer identity, because half of those places
+	 * reach for &portal1 by name.
+	 */
+	TEST_ASSERT_EQUAL_PTR(&portal1, portalForColor(true));
+	TEST_ASSERT_EQUAL_PTR(&portal2, portalForColor(false));
+}
+
+static void test_init_gives_each_colour_its_own_portal(void)
+{
+	/*
+	 * The pairing above is only right because initPortals paints portal1
+	 * orange and portal2 blue, and aims each at the other. A swap here would
+	 * leave every portalForColor caller consistent with each other and all
+	 * of them wrong, which no other test would notice.
+	 */
+	initPortals();
+
+	TEST_ASSERT_EQUAL_HEX16(RGB15(31,31,0), portalForColor(true)->color);
+	TEST_ASSERT_EQUAL_HEX16(RGB15(0,31,31), portalForColor(false)->color);
+	TEST_ASSERT_EQUAL_PTR(&portal2, portal1.targetPortal);
+	TEST_ASSERT_EQUAL_PTR(&portal1, portal2.targetPortal);
+}
+
 int main(void)
 {
 	UNITY_BEGIN();
@@ -365,6 +396,9 @@ int main(void)
 
 	RUN_TEST(test_the_first_portal_of_a_pair_is_always_allowed);
 	RUN_TEST(test_null_portals_are_tolerated);
+
+	RUN_TEST(test_the_orange_shot_fills_portal1_and_the_blue_portal2);
+	RUN_TEST(test_init_gives_each_colour_its_own_portal);
 
 	RUN_TEST(test_standing_still_in_a_portal_triggers_the_sound_once);
 	RUN_TEST(test_standing_still_in_the_far_portal_is_also_stable);

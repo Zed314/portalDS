@@ -44,7 +44,6 @@ SFX_struct *portalEnterSFX[2];
 /** Sound effect when leaving portal */
 SFX_struct *portalExitSFX[2];
 
-static bool oldCurrentPortalColor;
 bool currentPortalColor; //true=orange
 
 s16 gravityGunTarget;
@@ -165,7 +164,6 @@ void initPlayer(player_struct* p)
 	setFog(0);
 
 	currentPortalColor=true;
-	oldCurrentPortalColor=currentPortalColor;
 	drawBottomButton(currentPortalColor);
 }
 
@@ -445,8 +443,6 @@ bool shootPlayerGun(player_struct* p, bool R, u8 mode)
 	if(!p->currentRoom)return true;
 	camera_struct* c=getPlayerCamera();
 
-	p->currentPortal=R;
-
 	int32 k=inttof32(300);
 	vect3D u=getUnitVector(NULL);
 	vect3D l=vectDifference(p->object->position,convertVect(vect(p->currentRoom->position.x,0,p->currentRoom->position.y)));
@@ -483,8 +479,8 @@ bool shootPlayerGun(player_struct* p, bool R, u8 mode)
 			vect3D plane0=vect(c->transformationMatrix[0],c->transformationMatrix[3],c->transformationMatrix[6]);
 			plane0=normalize(vectDifference(plane0,vectMult(r->normal,dotProduct(r->normal,plane0))));
 
-			portal_struct* por=R?(&portal1):(&portal2);
-			portal_struct* other_por=R?(&portal2):(&portal1);
+			portal_struct* por=portalForColor(R);
+			portal_struct* other_por=portalForColor(!R);
 
 			vect3D oldp=por->position;vect3D oldn=por->normal;vect3D oldp0=por->plane[0];
 			movePortal(por, pos, vectMultInt(r->normal,-1), plane0, false);
@@ -560,6 +556,7 @@ void playerControls(player_struct* p)
     if((keys_up & KEY_TOUCH ) && isInsideButton(touchOld.px, touchOld.py))
     {
         currentPortalColor^=1;
+        drawBottomButton(currentPortalColor);
         touchCnt=0;
 
     }
@@ -660,8 +657,8 @@ void updatePlayer(player_struct* p)
 	if(p->inPortal && !p->oldInPortal)playSFX(portalEnterSFX[rand()%2]);
 	else if(!p->inPortal && p->oldInPortal)playSFX(portalExitSFX[rand()%2]);
 
-	editPalette((u16*)p->modelInstance.model->texture->pal,0,p->currentPortal?(RGB15(31,16,0)):(RGB15(0,12,31))); //TEMP?
-	editPalette((u16*)p->playerModelInstance.model->texture->pal,0,p->currentPortal?(RGB15(31,16,0)):(RGB15(0,12,31))); //TEMP?
+	editPalette((u16*)p->modelInstance.model->texture->pal,0,currentPortalColor?(RGB15(31,16,0)):(RGB15(0,12,31))); //TEMP?
+	editPalette((u16*)p->playerModelInstance.model->texture->pal,0,currentPortalColor?(RGB15(31,16,0)):(RGB15(0,12,31))); //TEMP?
 
 	collidePlayer(p,p->currentRoom);
 	if(!p->inPortal && collideAABBSludge(p->object->position, vect(PLAYERRADIUS,PLAYERRADIUS,PLAYERRADIUS)))p->life=-5;
@@ -686,13 +683,6 @@ void updatePlayer(player_struct* p)
 
 	updateAnimation(&p->modelInstance);
 	updateAnimation(&p->modelInstance); //TEMP?
-
-	if(oldCurrentPortalColor!=currentPortalColor)
-	{
-		drawBottomButton(currentPortalColor);
-		p->currentPortal= currentPortalColor;// TODO : find better way to do it asap
-	}
-	oldCurrentPortalColor=currentPortalColor;
 }
 
 void shootPlayer(player_struct* p, vect3D v, u8 damage)

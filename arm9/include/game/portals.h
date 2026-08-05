@@ -68,8 +68,11 @@ typedef struct portal_struct
 	bool used;               /**< False until this portal has been shot. */
 }portal_struct;
 
-extern portal_struct portal1, portal2; /**< The blue and orange portals. */
-extern portal_struct* currentPortal;   /**< The portal the next shot will place. */
+extern portal_struct portal1, portal2; /**< The orange and the blue portal, in that order. */
+extern portal_struct* currentPortal;   /**< The portal whose view is being refreshed - views update on a rota, see game.c - and the one last warped through. Nothing about shooting reads it. */
+
+/** @brief The portal a shot of the given colour places: orange fills portal1, blue portal2. */
+portal_struct* portalForColor(bool orange);
 
 /** @brief Creates both portals, links them and allocates the polygon pool. */
 void initPortals(void);
