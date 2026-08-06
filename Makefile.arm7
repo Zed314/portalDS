@@ -75,7 +75,7 @@ ARCH		:= -mthumb -mcpu=arm7tdmi
 
 SPECS		:= $(BLOCKSDS)/sys/crts/ds_arm7.specs
 
-WARNFLAGS	:= -Wall
+WARNFLAGS	:= -Wall -Wextra -Wpedantic -Werror
 
 ifeq ($(SOURCES_CPP),)
 	LIBS	+= -lc
@@ -94,7 +94,7 @@ ASFLAGS		+= -x assembler-with-cpp $(DEFINES) $(INCLUDEFLAGS) \
 
 CFLAGS		+= -std=gnu17 $(WARNFLAGS) $(DEFINES) $(INCLUDEFLAGS) \
 		   $(ARCH) -Os -ffunction-sections -fdata-sections \
-		   -specs=$(SPECS) -Wall -Wextra -Wpedantic -flto
+		   -specs=$(SPECS) -flto
 
 CXXFLAGS	+= -std=gnu++17 $(WARNFLAGS) $(DEFINES) $(INCLUDEFLAGS) \
 		   $(ARCH) -O2 -ffunction-sections -fdata-sections \

@@ -262,7 +262,7 @@ void addToBank(mtlImg_struct *mtl, u8* data, int b)
 	loadToBank(mtl, data);
 }
 
-void reserveInBank(mtlImg_struct *mtl, u8* data, vramBank_struct* b, int pal)
+void reserveInBank(mtlImg_struct *mtl, __attribute__((unused)) u8* data, vramBank_struct* b, int pal)
 {
 	NOGBA("h : %d %d, %d, %p",mtl->bank,b->s_used,mtl->size,mtl->addr);
 	int s=mtl->size;

@@ -100,7 +100,9 @@ BLOCK_TYPE getBlock(BLOCK_TYPE* ba, s8 x, s8 y, s8 z)
 
 void setBlock(BLOCK_TYPE* ba, u8 x, u8 y, u8 z, BLOCK_TYPE v)
 {
-	if(!ba || x<0 || y<0 || z<0 || x>=ROOMARRAYSIZEX || y>=ROOMARRAYSIZEY || z>=ROOMARRAYSIZEZ)return;
+	//unlike getBlock's s8s, unsigned coordinates cannot be negative - a
+	//negative int wraps to >=256 and the size checks catch it
+	if(!ba || x>=ROOMARRAYSIZEX || y>=ROOMARRAYSIZEY || z>=ROOMARRAYSIZEZ)return;
 	ba[x+y*ROOMARRAYSIZEX+z*ROOMARRAYSIZEX*ROOMARRAYSIZEY]=v;
 }
 
@@ -148,7 +150,7 @@ void changePortalableBlockDirection(BLOCK_TYPE* ba, u8 x, u8 y, u8 z, u16 u, boo
 	setBlock(ba, x, y, z, v);
 }
 
-void changeSludgeBlock(BLOCK_TYPE* ba, u8 x, u8 y, u8 z, u16 u, bool nosludge)
+void changeSludgeBlock(BLOCK_TYPE* ba, u8 x, u8 y, u8 z, __attribute__((unused)) u16 u, bool nosludge)
 {
 	if(!ba)return;
 	BLOCK_TYPE v=getBlock(ba, x, y, z);

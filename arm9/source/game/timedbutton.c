@@ -136,7 +136,7 @@ void updateTimedButtons(void)
 	}
 }
 
-timedButton_struct* collideRayTimedButtons(vect3D o, vect3D v, int32 l)
+timedButton_struct* collideRayTimedButtons(vect3D o, vect3D v, __attribute__((unused)) int32 l)
 {
 	int i;
 	for(i=0;i<NUMTIMEDBUTTONS;i++)

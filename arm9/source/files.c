@@ -28,7 +28,7 @@ u32 getFileSize(FILE *file) {
     return ftell(file);
 }
 
-bool initFilesystem(int argc, char **argv)
+bool initFilesystem(__attribute__((unused)) int argc, char **argv)
 {
 	bool saveAvailable;
     NOGBA("not entered ifdef\n");

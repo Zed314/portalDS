@@ -156,7 +156,7 @@ uint32_t decompressRLE(u16 *dst, u16 *src, uint32_t dstS, uint32_t srcS)
 			size= min( (header&~0x80)+3, dstS-ii);
 			// NOGBA("RLE1- : %d %d",size,*srcL);
 			// memset(&dstD[ii], *srcL, size);
-			int j; for(j=0;j<size;j++)dstD[ii+j]=*srcL; //can't used memset for 16bit
+			uint32_t j; for(j=0;j<size;j++)dstD[ii+j]=*srcL; //can't used memset for 16bit
 			srcL++;
 		}
 		else				// noncompressed stint

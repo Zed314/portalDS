@@ -214,7 +214,7 @@ void drawSelection(selection_struct* s)
 
 //SELECTION CONTEXT BUTTONS DEFINITION
 
-void fillButtonFunction(sguiButton_struct* b)
+void fillButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace)return;
@@ -226,7 +226,7 @@ void fillButtonFunction(sguiButton_struct* b)
 	adjustSelection(&editorRoom, s, oldFirstFace, oldSecondFace, oldCurrentFace, vect(0,0,0));
 }
 
-void emptyButtonFunction(sguiButton_struct* b)
+void emptyButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace)return;
@@ -238,7 +238,7 @@ void emptyButtonFunction(sguiButton_struct* b)
 	adjustSelection(&editorRoom, s, oldFirstFace, oldSecondFace, oldCurrentFace, vect(0,0,0));
 }
 
-void makeUnportalableButton(sguiButton_struct* b)
+void makeUnportalableButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -246,7 +246,7 @@ void makeUnportalableButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRange(editorRoom.blockArray, changePortalableBlockDirection, editorRoom.blockFaceList, s->origin, s->size, false);
 }
 
-void makePortalableButton(sguiButton_struct* b)
+void makePortalableButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -254,7 +254,7 @@ void makePortalableButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRange(editorRoom.blockArray, changePortalableBlockDirection, editorRoom.blockFaceList, s->origin, s->size, true);
 }
 
-void makeUnportalablePlanarButton(sguiButton_struct* b)
+void makeUnportalablePlanarButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -262,7 +262,7 @@ void makeUnportalablePlanarButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRangeDirection(editorRoom.blockArray, changePortalableBlockDirection, editorRoom.blockFaceList, s->origin, s->size, s->firstFace->direction, false);
 }
 
-void makePortalablePlanarButton(sguiButton_struct* b)
+void makePortalablePlanarButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -270,7 +270,7 @@ void makePortalablePlanarButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRangeDirection(editorRoom.blockArray, changePortalableBlockDirection, editorRoom.blockFaceList, s->origin, s->size, s->firstFace->direction, true);
 }
 
-void makeUnsludgePlanarButton(sguiButton_struct* b)
+void makeUnsludgePlanarButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -278,7 +278,7 @@ void makeUnsludgePlanarButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRangeDirection(editorRoom.blockArray, changeSludgeBlock, editorRoom.blockFaceList, s->origin, s->size, s->firstFace->direction, true);
 }
 
-void makeSludgePlanarButton(sguiButton_struct* b)
+void makeSludgePlanarButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -286,13 +286,13 @@ void makeSludgePlanarButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRangeDirection(editorRoom.blockArray, changeSludgeBlock, editorRoom.blockFaceList, s->origin, s->size, s->firstFace->direction, false);
 }
 
-void cancelTargetButton(sguiButton_struct* b)
+void cancelTargetButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	cleanUpContextButtons();
 	editorSelection.selectingTarget=false;
 }
 
-void removeTargetButton(sguiButton_struct* b)
+void removeTargetButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(s->entity)s->entity->target=NULL;

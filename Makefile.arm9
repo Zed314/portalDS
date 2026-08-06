@@ -88,7 +88,7 @@ ARCH		:= -marm -mcpu=arm946e-s+nofp
 
 SPECS		:= $(BLOCKSDS)/sys/crts/ds_arm9.specs
 
-WARNFLAGS	:= -Wall -Wno-implicit-function-declaration -Wno-incompatible-pointer-types
+WARNFLAGS	:= -Wall -Wextra -Werror -Wno-implicit-function-declaration -Wno-incompatible-pointer-types
 
 ifeq ($(SOURCES_CPP),)
 	LIBS	+= -lc

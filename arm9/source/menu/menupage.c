@@ -131,7 +131,7 @@ static void setupMenuPage(menuButton_struct* mp, u8 n)
 
 
 
-static void startMenuPlayButtonFunction(sguiButton_struct* b)
+static void startMenuPlayButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[4],&cameraStates[0],48);
 	setupMenuPage(mainMenuPage, mainMenuPageLength);
@@ -141,7 +141,7 @@ static void startMenuPlayButtonFunction(sguiButton_struct* b)
 
 
 
-static void mainMenuPlayButtonFunction(sguiButton_struct* b)
+static void mainMenuPlayButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[0],&cameraStates[1],48);
 	setupMenuPage(playMenuPage, playMenuPageLength);
@@ -230,13 +230,13 @@ void drawMenuCredits(void)
 	glPopMatrix(1);
 }
 
-static void mainMenuCreditsButtonFunction(sguiButton_struct* b)
+static void mainMenuCreditsButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	setupMenuPage(creditsMenuPage, creditsMenuPageLength);
 	creditsShown=true; //after setupMenuPage, which clears it
 }
 
-static void creditsMenuBackButtonFunction(sguiButton_struct* b)
+static void creditsMenuBackButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	setupMenuPage(mainMenuPage, mainMenuPageLength);
 }
@@ -396,7 +396,7 @@ void drawMenuOptions(void)
 	glPopMatrix(1);
 }
 
-static void mainMenuOptionsButtonFunction(sguiButton_struct* b)
+static void mainMenuOptionsButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	setupMenuPage(optionsMenuPage, optionsMenuPageLength);
 	optionsShown=true; //after setupMenuPage, which clears it
@@ -404,27 +404,27 @@ static void mainMenuOptionsButtonFunction(sguiButton_struct* b)
 	optionValuesDirty=true; //the settings may have changed since last shown
 }
 
-static void optionsMenuUpButtonFunction(sguiButton_struct* b)
+static void optionsMenuUpButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	if(optionsCursor)optionsCursor--;
 }
 
-static void optionsMenuDownButtonFunction(sguiButton_struct* b)
+static void optionsMenuDownButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	if(optionsCursor+1<OPTION_NUMBER)optionsCursor++;
 }
 
-static void optionsMenuLessButtonFunction(sguiButton_struct* b)
+static void optionsMenuLessButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	stepOption(optionsCursor, -1);
 }
 
-static void optionsMenuMoreButtonFunction(sguiButton_struct* b)
+static void optionsMenuMoreButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	stepOption(optionsCursor, 1);
 }
 
-static void optionsMenuBackButtonFunction(sguiButton_struct* b)
+static void optionsMenuBackButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	//Leaving the page is what saves. Writing on every tap of Less or More would
 	//be a card write per press, and this is the only way off the page.
@@ -433,19 +433,19 @@ static void optionsMenuBackButtonFunction(sguiButton_struct* b)
 	setupMenuPage(mainMenuPage, mainMenuPageLength);
 }
 
-static void mainMenuCreateButtonFunction(sguiButton_struct* b)
+static void mainMenuCreateButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[0],&cameraStates[2],64);
 	setupMenuPage(createMenuPage, createMenuPageLength);
 }
 
-static void playMenuCampaignButtonFunction(sguiButton_struct* b)
+static void playMenuCampaignButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	setMapFilePath("maps/test01.map");
 	changeState(&gameState);
 }
 
-static void playMenuLoadLevelButtonFunction(sguiButton_struct* b)
+static void playMenuLoadLevelButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[1],&cameraStates[3],64);
 	setupMenuPage(selectLevelMenuPage, selectLevelMenuPageLength);
@@ -471,20 +471,20 @@ static void playMenuLoadLevelButtonFunction(sguiButton_struct* b)
 	updateScreenList(&testScreenList);
 }
 
-static void playMenuBackButtonFunction(sguiButton_struct* b)
+static void playMenuBackButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[1],&cameraStates[0],48);
 	setupMenuPage(mainMenuPage, mainMenuPageLength);
 }
 
 
-static void createMenuBackButtonFunction(sguiButton_struct* b)
+static void createMenuBackButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[2],&cameraStates[0],64);
 	setupMenuPage(mainMenuPage, mainMenuPageLength);
 }
 
-static void createMenuNewLevelButtonFunction(sguiButton_struct* b)
+static void createMenuNewLevelButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[2],&cameraStates[3],64);
 	setupMenuPage(newLevelMenuPage, newLevelMenuPageLength);
@@ -496,7 +496,7 @@ static void createMenuNewLevelButtonFunction(sguiButton_struct* b)
 	setupKeyboard(&menuScreenText[1][2], 10, 16, 16);
 }
 
-static void createMenuLoadLevelButtonFunction(sguiButton_struct* b)
+static void createMenuLoadLevelButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[2],&cameraStates[3],64);
 	setupMenuPage(loadLevelMenuPage, loadLevelMenuPageLength);
@@ -516,7 +516,7 @@ static void createMenuLoadLevelButtonFunction(sguiButton_struct* b)
 	updateScreenList(&testScreenList);
 }
 
-static void newLevelMenuOKButtonFunction(sguiButton_struct* b)
+static void newLevelMenuOKButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	static char str[2048];
 	sprintf(str,"%s/%s/maps/%s.map",basePath,ROOT,&menuScreenText[1][2]);
@@ -525,26 +525,26 @@ static void newLevelMenuOKButtonFunction(sguiButton_struct* b)
 	changeState(&editorState);
 }
 
-static void newLevelMenuBackButtonFunction(sguiButton_struct* b)
+static void newLevelMenuBackButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[3],&cameraStates[2],64);
 	setupMenuPage(createMenuPage, createMenuPageLength);
 }
 
 
-static void selectLevelMenuUpButtonFunction(sguiButton_struct* b)
+static void selectLevelMenuUpButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	screenListMove(&testScreenList, -1);
 	updateScreenList(&testScreenList);
 }
 
-static void selectLevelMenuDownButtonFunction(sguiButton_struct* b)
+static void selectLevelMenuDownButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	screenListMove(&testScreenList, 1);
 	updateScreenList(&testScreenList);
 }
 
-static void selectLevelMenuOKButtonFunction(sguiButton_struct* b)
+static void selectLevelMenuOKButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	static char str[2048];
 	if(testScreenList.cursor<testListCnt1)sprintf(str,"./maps/%s",testScreenList.list[testScreenList.cursor]);
@@ -554,7 +554,7 @@ static void selectLevelMenuOKButtonFunction(sguiButton_struct* b)
 	changeState(&gameState);
 }
 
-static void selectLevelMenuBackButtonFunction(sguiButton_struct* b)
+static void selectLevelMenuBackButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[3],&cameraStates[1],64);
 	setupMenuPage(playMenuPage, playMenuPageLength);
@@ -563,19 +563,19 @@ static void selectLevelMenuBackButtonFunction(sguiButton_struct* b)
 }
 
 
-static void loadLevelMenuUpButtonFunction(sguiButton_struct* b)
+static void loadLevelMenuUpButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	screenListMove(&testScreenList, -1);
 	updateScreenList(&testScreenList);
 }
 
-static void loadLevelMenuDownButtonFunction(sguiButton_struct* b)
+static void loadLevelMenuDownButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	screenListMove(&testScreenList, 1);
 	updateScreenList(&testScreenList);
 }
 
-static void loadLevelMenuOKButtonFunction(sguiButton_struct* b)
+static void loadLevelMenuOKButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	static char str[2048];
 	sprintf(str,"%s/%s/maps/%s",basePath,ROOT,testScreenList.list[testScreenList.cursor]);
@@ -584,7 +584,7 @@ static void loadLevelMenuOKButtonFunction(sguiButton_struct* b)
 	changeState(&editorState);
 }
 
-static void loadLevelMenuBackButtonFunction(sguiButton_struct* b)
+static void loadLevelMenuBackButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	testTransition=startCameraTransition(&cameraStates[3],&cameraStates[2],64);
 	setupMenuPage(createMenuPage, createMenuPageLength);

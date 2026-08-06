@@ -31,6 +31,11 @@
 
 #include <nds.h>
 #include <fat.h>
+
+//libnds's NORMAL_PACK masks x and y but shifts z unmasked, which is undefined
+//for a negative z and a -Wshift-negative-value error. Same packing, z masked.
+#undef NORMAL_PACK
+#define NORMAL_PACK(x,y,z) (u32)(((x) & 0x3FF) | (((y) & 0x3FF) << 10) | (((u32)((z) & 0x3FF)) << 20))
 #include <filesystem.h>
 #include <sys/stat.h>
 #include <stdio.h>

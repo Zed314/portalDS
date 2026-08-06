@@ -13,7 +13,7 @@
 
 #include "common/general.h"
 
-void DS_Debug(char* string, ...)
+void DS_Debug(__attribute__((unused)) char* string, ...)
 {
 	//va_list varg;
 	//NOGBA(string);

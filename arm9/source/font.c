@@ -168,7 +168,7 @@ void loadFont(font_struct* f, u8 charsize, u8 rendersize)
 		for(i=0;i<512/4;i++)
 		{
 
-            if((i*4+3+j*512)<size)
+            if((u32)(i*4+3+j*512)<size)
             {
 			buffer[i+j*512/4]=(pcx.image.data8[i*4+j*512])|((pcx.image.data8[i*4+1+j*512])<<2)|((pcx.image.data8[i*4+2+j*512])<<4)|((pcx.image.data8[i*4+3+j*512])<<6);
             } else

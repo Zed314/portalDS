@@ -30,21 +30,21 @@ void wallDoorSpecialMove(entity_struct* e, vect3D op, u8 od, bool m);
 bool wallDoorSpecialMoveCheck(entity_struct* e, vect3D p, u8 dir);
 bool platformTargetSpecialMoveCheck(entity_struct* e, vect3D p, u8 dir);
 
-entityType_struct entityTypes[]={(entityType_struct){"editor/models/ballcatcher_ed.md2", "balllauncher.pcx", pX_mask | mX_mask | pY_mask | mY_mask | pZ_mask | mZ_mask, ballCatcherButtonArray, 2, NULL, NULL, NULL, NULL, false, true},
-								(entityType_struct){"editor/models/balllauncher_ed.md2", "balllauncher.pcx", pX_mask | mX_mask | pY_mask | mY_mask | pZ_mask | mZ_mask, ballLauncherButtonArray, 1, NULL, NULL, NULL, NULL, false, true},
-								(entityType_struct){"editor/models/button2_ed.md2", "button2.pcx", pY_mask, button2ButtonArray, 3, NULL, NULL, NULL, NULL, false, true},
-								(entityType_struct){"editor/models/button1_ed.md2", "button1.pcx", pY_mask, button1ButtonArray, 2, NULL, NULL, NULL, NULL, false, true},
-								(entityType_struct){"editor/models/turret_ed.md2", "turret.pcx", pY_mask, turretButtonArray, 2, NULL, NULL, NULL, NULL, false, true},
-								(entityType_struct){"editor/models/cube_ed.md2", "companion.pcx", pY_mask, cubeButtonArray, 1, cubeSpecialInit, NULL, cubeSpecialMove, NULL, true, true},
-								(entityType_struct){"editor/models/cube_ed.md2", "storagecube.pcx", pY_mask, cubeButtonArray, 1, cubeSpecialInit, NULL, cubeSpecialMove, NULL, true, true},
-								(entityType_struct){"editor/models/dispenser_ed.md2", "cubedispenser.pcx", mY_mask, cubeButtonArray, 1, NULL, NULL, dispenserSpecialMove, NULL, true, true},
-								(entityType_struct){"editor/models/grid_ed.md2", "balllauncher.pcx", pX_mask | mX_mask | pZ_mask | mZ_mask, gridButtonArray, 1, NULL, NULL, NULL, NULL, false, true},
-								(entityType_struct){"editor/models/platform_ed.md2", "platform.pcx", pX_mask | mX_mask | pY_mask | pZ_mask | mZ_mask, platformButtonArray, 2, NULL, NULL, platformSpecialMove, NULL, true, false},
-								(entityType_struct){"editor/models/door_ed.md2", "door.pcx", pY_mask, doorButtonArray, 2, NULL, NULL, NULL, NULL, false, true},
-								(entityType_struct){"editor/models/light_ed.md2", "lightbulb.pcx", pX_mask | mX_mask | pY_mask | mY_mask | pZ_mask | mZ_mask, lightButtonArray, 1, NULL, NULL, NULL, NULL, false, false},
-								(entityType_struct){"editor/models/platform_ed.md2", "platformtarget.pcx", pX_mask | mX_mask | pY_mask | pZ_mask | mZ_mask, platformButtonArray, 0, NULL, NULL, NULL, platformTargetSpecialMoveCheck, true, false},
-								(entityType_struct){"editor/models/walldoor_ed.md2", "door_plain.pcx", pX_mask | mX_mask | pZ_mask | mZ_mask, gridButtonArray, 1, NULL, wallDoorSpecialDraw, wallDoorSpecialMove, wallDoorSpecialMoveCheck, false, true},
-								(entityType_struct){"editor/models/walldoor_ed.md2", "door.pcx", pX_mask | mX_mask | pZ_mask | mZ_mask, gridButtonArray, 1, NULL, wallDoorSpecialDraw, wallDoorSpecialMove, wallDoorSpecialMoveCheck, false, true},
+entityType_struct entityTypes[]={(entityType_struct){.modelName="editor/models/ballcatcher_ed.md2", "balllauncher.pcx", pX_mask | mX_mask | pY_mask | mY_mask | pZ_mask | mZ_mask, ballCatcherButtonArray, 2, NULL, NULL, NULL, NULL, false, true},
+								(entityType_struct){.modelName="editor/models/balllauncher_ed.md2", "balllauncher.pcx", pX_mask | mX_mask | pY_mask | mY_mask | pZ_mask | mZ_mask, ballLauncherButtonArray, 1, NULL, NULL, NULL, NULL, false, true},
+								(entityType_struct){.modelName="editor/models/button2_ed.md2", "button2.pcx", pY_mask, button2ButtonArray, 3, NULL, NULL, NULL, NULL, false, true},
+								(entityType_struct){.modelName="editor/models/button1_ed.md2", "button1.pcx", pY_mask, button1ButtonArray, 2, NULL, NULL, NULL, NULL, false, true},
+								(entityType_struct){.modelName="editor/models/turret_ed.md2", "turret.pcx", pY_mask, turretButtonArray, 2, NULL, NULL, NULL, NULL, false, true},
+								(entityType_struct){.modelName="editor/models/cube_ed.md2", "companion.pcx", pY_mask, cubeButtonArray, 1, cubeSpecialInit, NULL, cubeSpecialMove, NULL, true, true},
+								(entityType_struct){.modelName="editor/models/cube_ed.md2", "storagecube.pcx", pY_mask, cubeButtonArray, 1, cubeSpecialInit, NULL, cubeSpecialMove, NULL, true, true},
+								(entityType_struct){.modelName="editor/models/dispenser_ed.md2", "cubedispenser.pcx", mY_mask, cubeButtonArray, 1, NULL, NULL, dispenserSpecialMove, NULL, true, true},
+								(entityType_struct){.modelName="editor/models/grid_ed.md2", "balllauncher.pcx", pX_mask | mX_mask | pZ_mask | mZ_mask, gridButtonArray, 1, NULL, NULL, NULL, NULL, false, true},
+								(entityType_struct){.modelName="editor/models/platform_ed.md2", "platform.pcx", pX_mask | mX_mask | pY_mask | pZ_mask | mZ_mask, platformButtonArray, 2, NULL, NULL, platformSpecialMove, NULL, true, false},
+								(entityType_struct){.modelName="editor/models/door_ed.md2", "door.pcx", pY_mask, doorButtonArray, 2, NULL, NULL, NULL, NULL, false, true},
+								(entityType_struct){.modelName="editor/models/light_ed.md2", "lightbulb.pcx", pX_mask | mX_mask | pY_mask | mY_mask | pZ_mask | mZ_mask, lightButtonArray, 1, NULL, NULL, NULL, NULL, false, false},
+								(entityType_struct){.modelName="editor/models/platform_ed.md2", "platformtarget.pcx", pX_mask | mX_mask | pY_mask | pZ_mask | mZ_mask, platformButtonArray, 0, NULL, NULL, NULL, platformTargetSpecialMoveCheck, true, false},
+								(entityType_struct){.modelName="editor/models/walldoor_ed.md2", "door_plain.pcx", pX_mask | mX_mask | pZ_mask | mZ_mask, gridButtonArray, 1, NULL, wallDoorSpecialDraw, wallDoorSpecialMove, wallDoorSpecialMoveCheck, false, true},
+								(entityType_struct){.modelName="editor/models/walldoor_ed.md2", "door.pcx", pX_mask | mX_mask | pZ_mask | mZ_mask, gridButtonArray, 1, NULL, wallDoorSpecialDraw, wallDoorSpecialMove, wallDoorSpecialMoveCheck, false, true},
 							};
 
 entity_struct entity[NUMENTITIES];
@@ -329,7 +329,7 @@ void drawEntities(void)
 
 //ENTITY CONTEXT BUTTONS
 
-void deleteEntityButton(sguiButton_struct* b)
+void deleteEntityButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->entity)return;
@@ -338,7 +338,7 @@ void deleteEntityButton(sguiButton_struct* b)
 	undoSelection(s);
 }
 
-void rotateEntityButton(sguiButton_struct* b)
+void rotateEntityButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->entity)return;
@@ -347,13 +347,13 @@ void rotateEntityButton(sguiButton_struct* b)
 	s->entity->orientation%=4;
 }
 
-void selectTargetButton(sguiButton_struct* b)
+void selectTargetButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	cleanUpContextButtons();
 	editorSelection.selectingTarget=true;
 }
 
-void setPlatformTargetButton(sguiButton_struct* b)
+void setPlatformTargetButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	if(!editorSelection.entity)return;
 	entity_struct* e=createEntity(vect(32,32,32), 12, false);
@@ -393,7 +393,7 @@ void cubeSpecialInit(entity_struct* e)
 	if(e->placed)cubeSpecialMove(e, e->position, e->direction, false);
 }
 
-void cubeSpecialMove(entity_struct* e, vect3D op, u8 od, bool m)
+void cubeSpecialMove(entity_struct* e, __attribute__((unused)) vect3D op, __attribute__((unused)) u8 od, __attribute__((unused)) bool m)
 {
 	if(!e || !e->target || e==e->target)return;
 	entity_struct* t=e->target;
@@ -408,7 +408,7 @@ void cubeSpecialMove(entity_struct* e, vect3D op, u8 od, bool m)
 	t->blockFace=getEntityBlockFace(t, editorRoom.blockFaceList);
 }
 
-void dispenserSpecialMove(entity_struct* e, vect3D op, u8 od, bool m)
+void dispenserSpecialMove(entity_struct* e, __attribute__((unused)) vect3D op, __attribute__((unused)) u8 od, __attribute__((unused)) bool m)
 {
 	if(!e || !e->target || e==e->target)return;
 	entity_struct* t=e->target;
@@ -423,7 +423,7 @@ void dispenserSpecialMove(entity_struct* e, vect3D op, u8 od, bool m)
 	t->blockFace=getEntityBlockFace(t, editorRoom.blockFaceList);
 }
 
-void platformSpecialMove(entity_struct* e, vect3D op, u8 od, bool m)
+void platformSpecialMove(entity_struct* e, __attribute__((unused)) vect3D op, __attribute__((unused)) u8 od, bool m)
 {
 	if(!e || !e->target || e==e->target || m)return;
 	entity_struct* t=e->target;
@@ -435,7 +435,7 @@ void platformSpecialMove(entity_struct* e, vect3D op, u8 od, bool m)
 	}
 }
 
-bool platformTargetSpecialMoveCheck(entity_struct* e, vect3D p, u8 dir)
+bool platformTargetSpecialMoveCheck(entity_struct* e, vect3D p, __attribute__((unused)) u8 dir)
 {
 	if(!e || !e->target || e==e->target)return false;
 	entity_struct* t=e->target;

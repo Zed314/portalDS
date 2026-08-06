@@ -21,7 +21,7 @@
 
 #include "editor/editor_main.h"
 
-static mapHeader_struct blankHeader=(mapHeader_struct){0,0,0,0,0};
+static mapHeader_struct blankHeader; //static storage: all fields zero
 
 //extern entity_struct entity[NUMENTITIES];
 //WRITING STUFF

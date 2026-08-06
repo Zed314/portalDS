@@ -129,7 +129,7 @@ void getMaxRectangle(u8* data, u8 val, int w, int h, vect2D* pos, vect2D* size)
 	*size=vect2(cornerb.x-originb.x+1,cornerb.y-originb.y+1);
 }
 
-void fillRectangle(u8* data, int w, int h, vect2D* pos, vect2D* size, u8 mask)
+void fillRectangle(u8* data, int w, __attribute__((unused)) int h, vect2D* pos, vect2D* size, u8 mask)
 {
 	int i;
 	for(i=pos->x;i<pos->x+size->x;i++)

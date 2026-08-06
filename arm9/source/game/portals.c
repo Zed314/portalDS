@@ -212,7 +212,7 @@ bool isPointInPortal(portal_struct* p, vect3D o, vect3D *v, int32* x, int32* y, 
 u16 getCurrentPortalColor(vect3D o)
 {
 	u16 col=0;
-	u32 dist=inttof32(10);
+	int32 dist=inttof32(10); //signed: compared against z, an int32 f32 offset
 	int32 x, y, z;
 	vect3D v;
 	if(isPointInPortal(&portal1,o,&v,&x,&y,&z))

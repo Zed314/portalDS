@@ -229,7 +229,7 @@ void updateControls(void)
         updateControl(i);
 }
 
-static void controlForward(player_struct* p, bool down, bool held)
+static void controlForward(player_struct* p, __attribute__((unused)) bool down, __attribute__((unused)) bool held)
 {
     if(!p)return;
 
@@ -248,7 +248,7 @@ static void controlForward(player_struct* p, bool down, bool held)
     }else moveCamera(NULL, vect(0,0,-PLAYERAIRSPEED));
 }
 
-static void controlBack(player_struct* p, bool down, bool held)
+static void controlBack(player_struct* p, __attribute__((unused)) bool down, __attribute__((unused)) bool held)
 {
     if(!p)return;
 
@@ -266,7 +266,7 @@ static void controlBack(player_struct* p, bool down, bool held)
     }else moveCamera(NULL, vect(0,0,PLAYERAIRSPEED));
 }
 
-static void controlStrafeLeft(player_struct* p, bool down, bool held)
+static void controlStrafeLeft(player_struct* p, __attribute__((unused)) bool down, __attribute__((unused)) bool held)
 {
     if(!p)return;
 
@@ -284,7 +284,7 @@ static void controlStrafeLeft(player_struct* p, bool down, bool held)
     }else moveCamera(NULL, vect(-PLAYERAIRSPEED,0,0));
 }
 
-static void controlStrafeRight(player_struct* p, bool down, bool held)
+static void controlStrafeRight(player_struct* p, __attribute__((unused)) bool down, __attribute__((unused)) bool held)
 {
     if(!p)return;
 
@@ -302,7 +302,7 @@ static void controlStrafeRight(player_struct* p, bool down, bool held)
     }else moveCamera(NULL, vect(PLAYERAIRSPEED,0,0));
 }
 
-static void controlPause(player_struct* p, bool down, bool held)
+static void controlPause(player_struct* p, bool down, __attribute__((unused)) bool held)
 {
     if(!p || !down)return;
 
@@ -314,7 +314,7 @@ static void controlPause(player_struct* p, bool down, bool held)
     doPause(NULL);
 }
 
-static void controlShootAll(player_struct* p, bool down, bool held)
+static void controlShootAll(player_struct* p, bool down, __attribute__((unused)) bool held)
 {
     if(!p || !down )return;
 
@@ -333,7 +333,7 @@ static void controlShootAll(player_struct* p, bool down, bool held)
     }
 }
 
-static void controlShootYellow(player_struct* p, bool down, bool held)
+static void controlShootYellow(player_struct* p, bool down, __attribute__((unused)) bool held)
 {
     if(!p || !down )return;
 
@@ -350,7 +350,7 @@ static void controlShootYellow(player_struct* p, bool down, bool held)
     }
 }
 
-static void controlShootBlue(player_struct* p, bool down, bool held)
+static void controlShootBlue(player_struct* p, bool down, __attribute__((unused)) bool held)
 {
     if(!p || !down)return;
 
@@ -367,7 +367,7 @@ static void controlShootBlue(player_struct* p, bool down, bool held)
     }
 }
 
-static void controlUse(player_struct* p, bool down, bool held)
+static void controlUse(player_struct* p, bool down, __attribute__((unused)) bool held)
 {
     if(!p || !down)return;
 
@@ -385,7 +385,7 @@ static void controlUse(player_struct* p, bool down, bool held)
     }
 }
 
-static void controlJump(player_struct* p, bool down, bool held)
+static void controlJump(player_struct* p, bool down, __attribute__((unused)) bool held)
 {
     if(!p || !down)return;
 
@@ -397,7 +397,7 @@ static void controlJump(player_struct* p, bool down, bool held)
     if(p->object->contact)p->object->speed=addVect(p->object->speed,vectMult(normGravityVector,-(inttof32(1)>>5)));
 }
 
-static void controlLookRight(player_struct* p, bool down, bool held)
+static void controlLookRight(player_struct* p, __attribute__((unused)) bool down, __attribute__((unused)) bool held)
 {
     if(!p)return;
 
@@ -409,7 +409,7 @@ static void controlLookRight(player_struct* p, bool down, bool held)
     rotateCamera(NULL, vect(0,16,0));
 }
 
-static void controlLookLeft(player_struct* p, bool down, bool held)
+static void controlLookLeft(player_struct* p, __attribute__((unused)) bool down, __attribute__((unused)) bool held)
 {
     if(!p)return;
 
@@ -421,7 +421,7 @@ static void controlLookLeft(player_struct* p, bool down, bool held)
     rotateCamera(NULL, vect(0,-16,0));
 }
 
-static void controlLookUp(player_struct* p, bool down, bool held)
+static void controlLookUp(player_struct* p, __attribute__((unused)) bool down, __attribute__((unused)) bool held)
 {
     if(!p)return;
 
@@ -433,7 +433,7 @@ static void controlLookUp(player_struct* p, bool down, bool held)
     rotateCamera(NULL, vect(16,0,0));
 }
 
-static void controlLookDown(player_struct* p, bool down, bool held)
+static void controlLookDown(player_struct* p, __attribute__((unused)) bool down, __attribute__((unused)) bool held)
 {
     if(!p)return;
     if(controlWasCalled[13])
