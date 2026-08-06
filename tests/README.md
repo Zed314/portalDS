@@ -190,6 +190,13 @@ be worse than not trying:
   ROM run under an emulator instead. See `tests/rom/README.md`.
   `tests/host/physics_fixture.c` stands in for the state `PI7.c` owns, so the
   physics can still be tested here without it.
+- **The whole-game path** - boot, level load, portal placement and the portal
+  render pipeline get one piece of coverage anyway: `tests/profile/run.sh`
+  boots the `FRAME_PROFILING` build under DeSmuME, where the game places the
+  portal pair by itself and the frame profiler reports whether the portals
+  are actually rendering. CI fails if they are not, and publishes the frame
+  profile in the job summary as a side effect. It is a smoke test, not a unit
+  test - it proves the pipeline comes up, not that any number in it is right.
 
 How the host build works
 ------------------------

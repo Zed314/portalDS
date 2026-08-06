@@ -65,6 +65,24 @@ jobs:
       - name: Build and run the test ROM
         run: tests/rom/run.sh
 
+  # The frame profiler doubling as an end-to-end smoke test: the profiling ROM
+  # boots straight into the first chamber, places the portal pair by itself,
+  # and reports whether the portals are actually rendering. The job fails
+  # unless they are - which covers boot, level load, physics settling, portal
+  # placement and the portal render pipeline in one go, none of which the host
+  # tests can reach. The frame profile lands in the job summary as a bonus;
+  # its numbers are informational, not asserted (emulator timing is
+  # approximate and runner speed varies).
+  portal-profile:
+    name: Portal pipeline profile
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the profiling ROM and run it
+        run: tests/profile/run.sh
+
   # The self-contained build path from the README: docker build --output.
   # Compiles the same sources again, but it is the only thing keeping the
   # Dockerfile honest.
