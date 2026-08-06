@@ -428,13 +428,16 @@ u32 debugVal; //TEMP
 #ifdef FRAME_PROFILING
 /**
  * Fires the two portals by itself once the chamber has settled, so a headless
- * profiling run exercises the whole portal pipeline. Rather than guessing at
- * view angles, it walks the room's portalable rectangles and points the
- * camera straight at each one's centre - through the shipping shootPlayerGun
- * path, so placement rules apply as in real play. A shot an obstruction or a
- * misfit refuses just moves on to the next candidate a second later. Each
- * attempt reports candidate index, shots placed and the used flags on the
- * profiler's debug channel.
+ * profiling run exercises the whole portal pipeline. Before any shot, it
+ * walks the player forward for a couple of seconds through the shipping
+ * moveCamera path, so the run exercises movement and shoots from somewhere a
+ * player could actually stand rather than from the spawn point. Rather than
+ * guessing at view angles, it then walks the room's portalable rectangles and
+ * points the camera straight at each one's centre - through the shipping
+ * shootPlayerGun path, so placement rules apply as in real play. A shot an
+ * obstruction or a misfit refuses just moves on to the next candidate a
+ * second later. Each attempt reports candidate index, shots placed and the
+ * used flags on the profiler's debug channel.
  */
 static void profilerAutoShoot(void)
 {
@@ -471,7 +474,16 @@ static void profilerAutoShoot(void)
 		}
 		return;
 	}
-	if(tries>=64 || tick<120 || (tick%30))return;
+	//walk phase: two seconds of holding "forward" once physics has settled,
+	//before the first portal is opened. Same accelerate-and-collide path as
+	//controlForward - if a wall is in the way the player just stops at it.
+	if(tick>=120 && tick<240)
+	{
+		if(pl->object->contact)moveCamera(NULL, vect(0,0,-(PLAYERGROUNDSPEED)));
+		else moveCamera(NULL, vect(0,0,-PLAYERAIRSPEED));
+		return;
+	}
+	if(tries>=64 || tick<270 || (tick%30))return;
 
 	//the candidate-th portalable rectangle, wrapping at the end of the list
 	rectangle_struct* target=NULL;

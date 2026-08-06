@@ -4,11 +4,12 @@
 #   tests/profile/run.sh              build the profiling ROM and run it
 #   tests/profile/run.sh --no-build   run the portalDS.nds that is already there
 #
-# The profiling build boots straight into the first chamber and places the
-# portal pair by itself (see profilerAutoShoot in game.c), so a successful run
-# proves the whole chain: boot, filesystem, level load, physics settling,
-# portal placement, and the portal render pipeline actually producing visible
-# portals. That last step is the pass condition - the profiler reports portal
+# The profiling build boots straight into the default chamber, walks the
+# player forward for a couple of seconds, then places the portal pair by
+# itself (see profilerAutoShoot in game.c), so a successful run proves the
+# whole chain: boot, filesystem, level load, physics settling, player
+# movement, portal placement, and the portal render pipeline actually
+# producing visible portals. That last step is the pass condition - the profiler reports portal
 # used/seen flags every ~4 seconds of game time, and this script fails unless
 # it sees reports with both portals placed AND both being rendered.
 #
@@ -33,7 +34,7 @@ HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 PROJECT="$(CDPATH= cd -- "$HERE/../.." && pwd)"
 
 EMU_IMAGE="${TEST_ROM_EMU_IMAGE:-ubuntu:24.04}"
-SECONDS_TIMEOUT="${SECONDS_TIMEOUT:-360}"
+SECONDS_TIMEOUT="${SECONDS_TIMEOUT:-60}"
 
 if [ "${1-}" != "--no-build" ]; then
 	echo "== building the profiling ROM (clean first: DEFINES changes are not tracked)"
