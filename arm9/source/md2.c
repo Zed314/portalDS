@@ -6,9 +6,8 @@
  * point and extended by smea. Three distinct jobs live here:
  *
  *  - **loading** (@ref loadMd2Model) - reads the file, then precomputes
- *    everything it can: vertices expanded into f32 model space, vertices
- *    packed into the hardware's VERTEX10 format, per-face normals, per-frame
- *    bounding boxes, and the animation list derived from the frame names.
+ *    everything it can: packed texture coordinates, per-frame bounding boxes,
+ *    and the animation list derived from the frame names.
  *
  *  - **display list baking** (@ref generateModelDisplayLists) - turns each
  *    frame into a ready-made command buffer for the geometry engine. This is
@@ -75,10 +74,6 @@ void packFrameData(md2Model_struct *mdl, md2_frame_t* f)
     for(i=0;i<mdl->header.num_vertices;i++)
     {
         md2_vertex_t* pvert = &f->verts[i];
-        // vect3D scale=f->scale;
-        // f->packedVerts[i]=vect(((scale.x*pvert->v[0])/8),((scale.y*pvert->v[1])/8),((scale.z*pvert->v[2])/8));
-        f->packedv10[i]=NORMAL_PACK(pvert->v[0],pvert->v[1],pvert->v[2]);
-        
         if(pvert->v[0]<f->min.x)f->min.x=pvert->v[0];
         else if(pvert->v[0]>f->max.x)f->max.x=pvert->v[0];
         if(pvert->v[1]<f->min.y)f->min.y=pvert->v[1];
@@ -218,7 +213,6 @@ int loadMd2Model(const char *filename, char *texname, md2Model_struct *mdl)
     {
         /* Memory allocation for vertices of this frame */
         mdl->frames[i].verts = (md2_vertex_t *) malloc (sizeof (md2_vertex_t) * mdl->header.num_vertices);
-        mdl->frames[i].packedv10 = (u32 *) malloc (sizeof (u32) * mdl->header.num_vertices);
         mdl->frames[i].displayList[0] = NULL;
         mdl->frames[i].displayList[1] = NULL;
         mdl->frames[i].displayList[2] = NULL;
@@ -246,11 +240,7 @@ void freeMd2FrameData(md2_frame_t* f, bool dl)
     if(!f)return;
 
     if(f->verts)free(f->verts);
-    if(f->packedv10)free(f->packedv10);
-
     f->verts = NULL;
-    f->packedVerts = NULL;
-    f->packedv10 = NULL;
 
     if(dl)
     {
@@ -413,53 +403,6 @@ NOGBA("HM");
         }
     }
     NOGBA("total DL : %d",(d-getMemFree())/1024); //TEMP
-}
-
-void renderModelFrame(int n, const md2Model_struct *mdl)
-{
-    int i, j;
-    
-    glPolyFmt(POLY_ALPHA(31) | POLY_CULL_FRONT);
-
-    n%=mdl->header.num_frames;
-    if ((n < 0) || (n > mdl->header.num_frames - 1))return;
-
-    md2_frame_t *pframe=&mdl->frames[n];
-        
-    applyMTL(mdl->texture);
-
-    glPushMatrix();
-    
-    glRotateXi(-(1<<13));
-    
-    // vect3D u=vect(inttof32(1),0,0);
-    
-    glTranslate3f32(pframe->translate.x,pframe->translate.y,pframe->translate.z);
-    glScalef32((pframe->scale.x),(pframe->scale.y),(pframe->scale.z));
-    glScalef32(inttof32(64),inttof32(64),inttof32(64)); // necessary for v10
-    glBegin (GL_TRIANGLES);
-    GFX_COLOR=RGB15(31,31,31);
-    for (i = 0; i < mdl->header.num_tris; ++i)
-    {
-        // if(fakeDotProduct(anorms_table2[pframe->verts[mdl->triangles[i].vertex[0]].normalIndex],u)>0)
-        {
-            for (j = 0; j < 3; ++j)
-            {
-                GFX_TEX_COORD=mdl->packedTexcoords[mdl->triangles[i].st[j]];
-
-                // GFX_NORMAL=anorms_table[pframe->verts[mdl->triangles[i].vertex[j]].normalIndex];
-
-                //v16
-                // vect3D v=pframe->packedVerts[mdl->triangles[i].vertex[j]];
-                // glVertex3v16(v.x,v.y,v.z);
-                
-                //v10
-                GFX_VERTEX10=pframe->packedv10[mdl->triangles[i].vertex[j]];
-            }
-        }
-    }
-    glEnd();
-    glPopMatrix(1);
 }
 
 void renderModelFrameInterp(int n, int n2, int m, const md2Model_struct *mdl, u32 params, bool center, u32* pal, u16 color)

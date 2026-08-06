@@ -115,8 +115,6 @@ typedef struct
 	vect3D translate; /**< Offset applied after ::scale. */
 	char name[16];    /**< Frame name; the animation splitter parses these. */
 	md2_vertex_t *verts; /**< The raw on-disk vertices. */
-	vect3D *packedVerts; /**< Vertices expanded into f32 model space. */
-	u32 *packedv10;      /**< Vertices packed into the hardware's 4.6 VERTEX10 format. */
 	vect3D* faceNormals; /**< One normal per triangle, computed at load time. */
 	vect3D min, max;     /**< Bounding box of this frame. */
 	u16 next;            /**< Frame this one interpolates towards. */
@@ -184,9 +182,6 @@ int loadMd2Model (const char *filename, char *texname, md2Model_struct *mdl);
 
 /** @brief Releases everything a model owns. */
 void freeMd2Model(md2Model_struct *mdl);
-
-/** @brief Draws a single frame with no interpolation. */
-void renderModelFrame (int n, const md2Model_struct *mdl);
 
 /**
  * @brief Draws a model interpolated between two frames.
