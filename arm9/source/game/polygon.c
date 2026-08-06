@@ -115,7 +115,7 @@ polygon_struct* createEllipseOutline(vect3D po, vect3D v1_1, vect3D v2_1, vect3D
 	return pp;
 }
 
-vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v, int32 d)
+vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v)
 {
 	if(!pl)return o;
 	vect3D n=vect(pl->A,pl->B,pl->C);
@@ -145,10 +145,10 @@ void clipSegmentPlane(plane_struct* pl, polygon_struct** o, polygon_struct* pp1,
 		{
 			vect3D dir=vectDifference(v2,v1);
 			dir=vect(dir.x<<8,dir.y<<8,dir.z<<8); //improves precision, but limits polygon size; so be careful not to use polygons that are too big
-			int32 dist=magnitude(dir); //not the actual distance between v1 and v2 but intersectSegmentPlane doesn't need it so...
+			int32 dist=magnitude(dir); //not the actual distance between v1 and v2, only used to normalize dir
 			dir=divideVect(dir,dist);
 
-			vect3D v=intersectSegmentPlane(pl,v1,dir,dist);
+			vect3D v=intersectSegmentPlane(pl,v1,dir);
 
 			p=createPolygon(v);
 			if(!p)return;
@@ -160,10 +160,10 @@ void clipSegmentPlane(plane_struct* pl, polygon_struct** o, polygon_struct* pp1,
 		{
 			vect3D dir=vectDifference(v2,v1);
 			dir=vect(dir.x<<8,dir.y<<8,dir.z<<8); //improves precision, but limits polygon size; so be careful not to use polygons that are too big
-			int32 dist=magnitude(dir); //not the actual distance between v1 and v2 but intersectSegmentPlane doesn't need it so...
+			int32 dist=magnitude(dir); //not the actual distance between v1 and v2, only used to normalize dir
 			dir=divideVect(dir,dist);
 
-			vect3D v=intersectSegmentPlane(pl,v1,dir,dist);
+			vect3D v=intersectSegmentPlane(pl,v1,dir);
 
 			polygon_struct* p=createPolygon(v);
 			if(!p)return;

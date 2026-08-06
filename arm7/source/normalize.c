@@ -43,7 +43,9 @@
 
 #include <nds.h>
 #include <stdint.h>
-ARM_CODE static uint32_t sqrt_core(uint32_t x, uint32_t y)
+//never called - this is the readable reference for sqrt_core_asm below, and
+//the file comment about overflow cancelling underflow points into it
+__attribute__((unused)) ARM_CODE static uint32_t sqrt_core(uint32_t x, uint32_t y)
 {
     x>>=1;
     uint32_t t=x+(x>>1);

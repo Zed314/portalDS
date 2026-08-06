@@ -73,8 +73,8 @@ polygon_struct* createQuad(vect3D v1, vect3D v2, vect3D v3, vect3D v4);
 /** @brief Clips a polygon against all six frustum planes in turn. */
 polygon_struct* clipPolygonFrustum(frustum_struct* f, polygon_struct* p);
 
-/** @brief Intersects a ray with a plane. The last argument is unused. */
-vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v, int32 d);
+/** @brief Intersects a ray with a plane. */
+vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v);
 
 /**
  * @brief Clips one edge against a plane, appending the result to a polygon.

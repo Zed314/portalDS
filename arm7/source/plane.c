@@ -25,7 +25,7 @@ ARM_CODE void initPlane(plane_struct* pl, int32 A, int32 B, int32 C, int32 D)
 	pl->point.z=-mulf32(pl->D,pl->C);
 }
 
-ARM_CODE vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v, int32 d)
+ARM_CODE vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v)
 {
 	if(!pl)return o;
 	vect3D n=vect(pl->A,pl->B,pl->C);

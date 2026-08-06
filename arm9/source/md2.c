@@ -300,9 +300,13 @@ void generateFrameDisplayList(int n, const md2Model_struct *mdl, u8 normals)
     int i, j;
     if(!mdl)return;
     if ((n < 0) || (n > mdl->header.num_frames - 1))return;
+    //checked here rather than in the loop: a return after glBeginListDL would
+    //leave the display list open. (st is an embedded array, never NULL.)
+    if (!mdl->triangles || !mdl->packedTexcoords)
+        return;
 
     md2_frame_t *pframe=&mdl->frames[n];
-    
+
     u32* ptr=glBeginListDL();
     if (!ptr)
         return;
@@ -311,12 +315,8 @@ void generateFrameDisplayList(int n, const md2Model_struct *mdl, u8 normals)
     {
         for (j = 0; j < 3; ++j)
         {
-    
-            if (! mdl->triangles || !mdl->triangles[i].st)
-                return;
+
             size_t idx=mdl->triangles[i].st[j];
-            if (!mdl->packedTexcoords)
-                return;
             glTexCoordPACKED(mdl->packedTexcoords[idx]);
             if(normals)glNormalDL(anorms_table[pframe->verts[mdl->triangles[i].vertex[j]].normalIndex]);
             glVertexPackedDL(NORMAL_PACK(pframe->verts[mdl->triangles[i].vertex[j]].v[0]*2,pframe->verts[mdl->triangles[i].vertex[j]].v[1]*2,pframe->verts[mdl->triangles[i].vertex[j]].v[2]*2));

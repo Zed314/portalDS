@@ -65,10 +65,9 @@ void initPlane(plane_struct* pl, int32 A, int32 B, int32 C, int32 D);
  * @param pl plane to hit; returns @p o unchanged if NULL.
  * @param o  ray origin.
  * @param v  ray direction.
- * @param d  unused; kept for call compatibility with older revisions.
  * @return the intersection point. Undefined if the ray is parallel to the plane.
  */
-vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v, int32 d);
+vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v);
 
 /**
  * @brief Generates contacts between a plane and a rigid body.

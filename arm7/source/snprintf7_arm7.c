@@ -251,7 +251,6 @@ static int bufVprintf(const char *fmt, va_list args)
                     }
                     //int t=buffer->padding;
                     buffer->padding=0;//todo: do something with the padding
-                    int charsPrinted=0;
                     if ((ipart>>32)!=0)
                     {
                         //not equipped to handle this
@@ -259,7 +258,7 @@ static int bufVprintf(const char *fmt, va_list args)
                         errno=ERANGE;
                         break;
                     }
-                    charsPrinted+=bufPrintNumUnsigned((uint32_t)ipart, 10);
+                    bufPrintNumUnsigned((uint32_t)ipart, 10);
                     buffer->padding=6;                    
                     buffer->paddingChar='0';
                     bufPutc('.');
