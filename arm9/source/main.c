@@ -127,8 +127,16 @@ int main(int argc, char **argv)
         NOGBA("gamestate\n");
         changeState(&gameState);
     }
-    NOGBA("menustate\n");
-    changeState(&menuState);
+    #ifdef FRAME_PROFILING
+        //A profiling build wants gameplay numbers without a hand on the touch
+        //screen, so boot straight into the chamber the Play button would load
+        //instead of stopping at the menu.
+        setMapFilePath("maps/test01.map");
+        changeState(&gameState);
+    #else
+        NOGBA("menustate\n");
+        changeState(&menuState);
+    #endif
 
     NOGBA("applystate\n");
     applyState();

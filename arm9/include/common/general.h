@@ -67,6 +67,7 @@
 #include "debug/xmem.h"
 #include "engine/state.h"
 #include "engine/debug.h"
+#include "engine/profiler.h"
 #include "engine/memory.h"
 
 #include "McuASAN.h"

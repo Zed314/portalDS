@@ -233,6 +233,7 @@ static inline void render1(void)
 		updateDoors();
 		updateWallDoors();
 	// iprintf("updates : %d  \n",cpuEndSlice());
+	profilerSectionEnd(PROF_UPDATES);
 
 	// if(currentPortal)GFX_CLEAR_COLOR=currentPortal->color|(31<<16);
 	// else GFX_CLEAR_COLOR=0;
@@ -311,6 +312,7 @@ static inline void render1(void)
 	}
 
 	glFlush(0);
+	profilerSectionEnd(PROF_SUBMIT);
 }
 
 static inline void render2(void)
@@ -431,6 +433,7 @@ void gameFrame(void)
 			#endif
 			cpuEndSlice();
 			postProcess1();
+			profilerSectionEnd(PROF_POSTPROC);
 			// iprintf("postproc : %d  \n",cpuEndSlice());
 			render1();
 
@@ -438,29 +441,38 @@ void gameFrame(void)
 			#ifdef DEBUG_GAME
 				iprintf("full : %d (%d)  \n",cpuEndTiming(),testStepByStep);
 			#endif
+			profilerHalfEnd();
 			swiWaitForVBlank();
 			cpuStartTiming(0);
+			profilerEpochStart(1); //the half about to run is B
 			prevTiming=0;
 			if(previousPortal)dmaCopy(VRAM_C, previousPortal->viewPoint, 256*192*2);
 			setRegCapture(true, 0, 15, 2, 0, 3, 1, 0);
+			profilerSectionEnd(PROF_COPY);
 			frmCNT++;
 			break;
 		case true:
 			// cpuStartTiming(0);
 			postProcess2();
+			profilerSectionEnd(PROF_POSTPROC);
 			// iprintf("frm 2 : %d  \n",cpuGetTiming());
 			render2();
+			profilerSectionEnd(PROF_SUBMIT);
 			listenPI9();
 			updateOBBs();
+			profilerSectionEnd(PROF_PHYSICS);
 			// iprintf("frm 2 : %d  \n",cpuEndTiming());
 			#ifdef DEBUG_GAME
 				iprintf("fake frame : %d   \n",cpuEndTiming());
 			#endif
+			profilerHalfEnd();
 			swiWaitForVBlank();
 			cpuStartTiming(0);
+			profilerEpochStart(0); //the half about to run is A
 			prevTiming=0;
 			dmaCopy(VRAM_C, mainScreen, 256*192*2);
 			setRegCapture(true, 0, 15, 2, 0, 3, 1, 0);
+			profilerSectionEnd(PROF_COPY);
 			break;
 	}
 
