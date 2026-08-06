@@ -42,10 +42,18 @@ endif
 
 BASEFLAGS := -std=gnu11 -g -O1 -fwrapv $(SANFLAGS)
 
+# Every compile also writes a .d fragment listing the headers it pulled in
+# (-MP adds phony targets so a deleted header cannot wedge the build), and
+# the -include at the bottom feeds them back to make. Without this, editing
+# a game struct header left objects built against the old layout linked to
+# freshly built ones - shifted fields and garbage test failures that only a
+# clean build explained.
+DEPFLAGS  := -MMD -MP
+
 # The game sources predate most of these warnings and are not the thing under
 # test, so they are built without -Wextra to keep the output readable.
-GAMEFLAGS := $(BASEFLAGS) -Wall
-TESTFLAGS := $(BASEFLAGS) -Wall -Wextra
+GAMEFLAGS := $(BASEFLAGS) $(DEPFLAGS) -Wall
+TESTFLAGS := $(BASEFLAGS) $(DEPFLAGS) -Wall -Wextra
 
 # The ARM9 sources need two more turned off, and both are worth knowing about
 # rather than only silencing:
@@ -113,7 +121,7 @@ $(BUILD):
 # --- framework and host support ------------------------------------------
 
 $(BUILD)/unity.o: $(TESTDIR)unity/unity.c $(THISFILE) | $(BUILD)
-	$(CC) $(BASEFLAGS) $(I_UNITY) -c $< -o $@
+	$(CC) $(BASEFLAGS) $(DEPFLAGS) $(I_UNITY) -c $< -o $@
 
 $(BUILD)/arm_primitives.o: $(TESTDIR)host/arm_primitives.c $(THISFILE) | $(BUILD)
 	$(CC) $(TESTFLAGS) $(I_HOST) -c $< -o $@
@@ -247,3 +255,7 @@ $(BUILD)/test_portals: $(BUILD)/test_portals.o $(LEVELOBJS)
 # and files.c is here for basePath, which settings.c resolves its path from.
 $(BUILD)/test_settings: $(BUILD)/test_settings.o $(LEVELOBJS) $(BUILD)/arm9_settings.o
 	$(CC) $(BASEFLAGS) $^ -o $@ -lm
+
+# The header dependency fragments the compiles above wrote. wildcard, so a
+# fresh checkout (no build directory yet) includes nothing and stays silent.
+-include $(wildcard $(BUILD)/*.d)
