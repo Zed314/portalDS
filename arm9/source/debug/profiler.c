@@ -13,6 +13,8 @@
 
 #ifdef FRAME_PROFILING
 
+#include "game/game_main.h" //for the portal state in the report telemetry
+
 /** Halves of each kind per report: 128 of each is ~4.3 seconds of game. */
 #define PROFILER_REPORT_HALVES 128
 
@@ -61,10 +63,24 @@ static void emitWord(int half, int code, u32 usec)
 	PROFILER_MMIO_SINK=((u32)((half<<4)|code)<<24)|(usec&0xFFFFFF);
 }
 
+void profilerEmitDebug(u32 value)
+{
+	PROFILER_MMIO_SINK=(0xFFu<<24)|(value&0xFFFFFF);
+}
+
+extern bool orangeSeen, blueSeen; //game.c: did postProcess find portal pixels
+
 static void report(void)
 {
 	static const char* label[2]={"A","B"};
 	char line[128];
+	//marker 0xB: portal pipeline state at report time - used flags, seen
+	//flags, and whether portal1 still has its polygon and display list
+	profilerEmitDebug(0xB00000
+		|(portal1.used?1:0)|(portal2.used?2:0)
+		|(orangeSeen?4:0)|(blueSeen?8:0)
+		|(portal1.unprojectedPolygon?16:0)|(portal1.displayList?32:0)
+		|(portal1.outline?64:0));
 	for(int h=0;h<2;h++)
 	{
 		const u32 busy=busySum[h]/PROFILER_REPORT_HALVES;

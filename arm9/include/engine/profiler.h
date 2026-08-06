@@ -60,11 +60,16 @@ void profilerSectionEnd(profilerSection_type s);
  *  swiWaitForVBlank; emits the report once enough halves have accumulated. */
 void profilerHalfEnd(void);
 
+/** @brief Emits the low 24 bits of @p value on the raw-register side channel
+ *  under tag 0xFF - for run harness telemetry (which auto-aim landed, etc). */
+void profilerEmitDebug(u32 value);
+
 #else
 
 static inline void profilerEpochStart(int half){(void)half;}
 static inline void profilerSectionEnd(profilerSection_type s){(void)s;}
 static inline void profilerHalfEnd(void){}
+static inline void profilerEmitDebug(u32 value){(void)value;}
 
 #endif
 
