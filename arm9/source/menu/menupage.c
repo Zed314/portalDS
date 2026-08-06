@@ -287,6 +287,24 @@ static void optionValueString(menuOption_type o, char* out, int n)
 	}
 }
 
+/** Formatted value strings for the rows, refreshed only when a value changes -
+ *  snprintf is by far the most expensive thing on this page, so it must not
+ *  run per row per frame. */
+static char optionValueCache[OPTION_NUMBER][16];
+static u8 optionValueLen[OPTION_NUMBER];
+static bool optionValuesDirty=true;
+
+static void refreshOptionValues(void)
+{
+	int i;
+	for(i=0;i<OPTION_NUMBER;i++)
+	{
+		optionValueString(i, optionValueCache[i], sizeof(optionValueCache[i]));
+		optionValueLen[i]=strlen(optionValueCache[i]);
+	}
+	optionValuesDirty=false;
+}
+
 /**
  * @brief Moves one setting by one step.
  * @param o setting to change.
@@ -325,26 +343,26 @@ static void stepOption(menuOption_type o, int direction)
 		}
 		default: break;
 	}
+	optionValuesDirty=true;
 }
 
 /** @brief Draws one row: label at the left margin, value at the right one. */
 static void drawOptionRow(menuOption_type o, int y)
 {
-	char value[16];
-	optionValueString(o, value, sizeof(value));
-
 	//Yellow marks the row Less and More act on. There is no cursor sprite to
 	//draw, and with four rows on a screen colour is enough to find it by.
 	const u16 color=(o==optionsCursor)?RGB15(31,31,0):RGB15(31,31,31);
 
 	drawString((char*)optionNames[o], color, inttof32(1), inttof32(OPTIONSMARGIN), inttof32(y));
-	drawString(value, color, inttof32(1),
-		inttof32(256-OPTIONSMARGIN-(int)strlen(value)*8), inttof32(y));
+	drawString(optionValueCache[o], color, inttof32(1),
+		inttof32(256-OPTIONSMARGIN-(int)optionValueLen[o]*8), inttof32(y));
 }
 
 void drawMenuOptions(void)
 {
 	if(!optionsShown)return;
+
+	if(optionValuesDirty)refreshOptionValues();
 
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
@@ -383,6 +401,7 @@ static void mainMenuOptionsButtonFunction(sguiButton_struct* b)
 	setupMenuPage(optionsMenuPage, optionsMenuPageLength);
 	optionsShown=true; //after setupMenuPage, which clears it
 	optionsCursor=0;
+	optionValuesDirty=true; //the settings may have changed since last shown
 }
 
 static void optionsMenuUpButtonFunction(sguiButton_struct* b)
