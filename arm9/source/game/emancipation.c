@@ -214,7 +214,10 @@ void updateEmancipationGrids(void)
 
 void drawEmancipationGrid(emancipationGrid_struct* eg)
 {
-	static u16 counter=0;
+	//same palette cadence as the old (counter/4)%6, minus the two software
+	//divisions per grid per frame
+	static u8 tick=0;
+	static u8 palIndex=0;
 	if(!eg)return;
 
 	int32 l=abs(eg->length);
@@ -231,7 +234,8 @@ void drawEmancipationGrid(emancipationGrid_struct* eg)
 		glPopMatrix(1);
 
 		applyMTL(gridMtl);
-		bindPaletteAddr(gridPalettes[(((counter++)/4)%6)]);
+		if(++tick>=4){tick=0;if(++palIndex>=6)palIndex=0;}
+		bindPaletteAddr(gridPalettes[palIndex]);
 		GFX_COLOR=RGB15(31,31,31);
 		glPolyFmt(POLY_ALPHA(12) | POLY_ID(21) | POLY_CULL_NONE | POLY_FOG);
 		glScalef32(l,EMANCIPATIONGRIDHEIGHT/2,inttof32(1));
