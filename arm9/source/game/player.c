@@ -493,8 +493,6 @@ bool shootPlayerGun(player_struct* p, bool R, u8 mode)
 			vect3D pos=addVect(convertVect(vect(p->currentRoom->position.x,0,p->currentRoom->position.y)),ip);
 			NOGBA("SHOT WALL ! GOOD GOING %ld %ld %d",r->normal.z,r->normal.x, r->AARid);
 
-			// particleExplosion(pos,64,R?(RGB15(31,31,0)):(RGB15(0,31,31)));
-
 			// r->hide^=1;
 
 			//vect3D v=vectDifference(pos,p->object->position);
@@ -526,6 +524,9 @@ bool shootPlayerGun(player_struct* p, bool R, u8 mode)
 				//and the gun visibly discharging nothing is the clearest of
 				//them.
 				spawnMuzzleParticles(por->color);
+				//and a world-space burst at the wall itself, sprayed out
+				//along the portal normal - same rule, only on success.
+				particleExplosionDir(pos,vectDivInt(r->normal,-128),12,por->color);
 			}else{
                 NOGBA("Portal secondary branch!\n");
                 NOGBA("portal intersect is %d\n", portalToPortalIntersection(por,other_por));

@@ -17,6 +17,7 @@
 #include "game/game_main.h"
 
 #define ENERGYBALLSIZE (128)
+#define ENERGYBALLCOLOR RGB15(31,26,5) /**< Particle burst tint, matching the pellet's yellow. */
 #define NUMENERGYDEVICES (8)
 #define NUMENERGYBALLS (8)
 
@@ -338,6 +339,11 @@ void updateEnergyBall(energyBall_struct* eb)
 			eb->position=ip;
 			eb->direction=vectDifference(eb->direction,vectMult(normal,2*dotProduct(eb->direction,normal)));
 			eb->position=addVect(eb->position,vectMult(eb->direction,ENERGYBALLSIZE));
+			//sparks off the impact point, biased along the reflected direction.
+			//direction is unit f32 (4096); /128 brings it down to particle
+			//speeds. Kept small - a busy chamber can have eight pellets
+			//bouncing into a 256-particle pool.
+			particleExplosionDir(ip,vectDivInt(eb->direction,128),6,ENERGYBALLCOLOR);
 		}else{
 			eb->position=addVect(eb->position,vectMult(eb->direction,eb->speed));
 			warpEnergyBall(portal,eb);
@@ -349,7 +355,13 @@ void updateEnergyBall(energyBall_struct* eb)
 
 	updateAnimation(&eb->modelInstance);
 
-	if(!eb->life)killEnergyBall(eb);
+	if(!eb->life)
+	{
+		//expired mid-flight: the pellet pops where it dies. The catcher path
+		//above kills the ball without this - a clean catch is not an explosion.
+		particleExplosion(eb->position,24,ENERGYBALLCOLOR);
+		killEnergyBall(eb);
+	}
 	else eb->life--;
 }
 

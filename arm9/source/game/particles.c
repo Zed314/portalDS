@@ -1,15 +1,10 @@
 /**
  * @file particles.c
- * @brief Particle effects. Entirely commented out.
- *
- * The system was cut for performance - see @ref particles.h. The file is kept
- * so the implementation is still on record next to the calls in game.c that
- * would have used it.
+ * @brief World-space particle effects. See @ref particles.h.
  */
 
 #include "game/game_main.h"
-// Currently  not used
-/*
+
 static particle_struct particles[NUMPARTICLES];
 static u16 particleCnt;
 
@@ -44,7 +39,7 @@ void createParticles(vect3D position, vect3D speed, u16 life, u16 color)
 	}
 }
 
-void drawParticle(particle_struct* p)
+static void drawParticle(particle_struct* p)
 {
 	if(!p)return;
 	glPushMatrix();
@@ -77,7 +72,7 @@ void drawParticles(void)
 	}
 }
 
-void updateParticle(particle_struct* p)
+static void updateParticle(particle_struct* p)
 {
 	if(!p)return;
 	p->position.y-=GRAVITY/4;
@@ -115,4 +110,4 @@ void particleExplosionDir(vect3D p, vect3D dir, int number, u16 color)
 	{
 		createParticles(p, addVect(dir,vect((rand()%speed)-speed/2,(rand()%speed)-speed/2,(rand()%speed)-speed/2)), 90, color);
 	}
-}*/
+}
