@@ -413,9 +413,10 @@ static void test_the_portals_are_not_consulted_when_unplaced(void)
 static void test_both_portals_are_consulted_for_each_surface(void)
 {
 	/*
-	 * With both portals down, every surface the player is resolved against
-	 * has to be checked against both of them - that is what stops a surface
-	 * with a portal in it from pushing the player back out of the hole.
+	 * With both portals down, every surface in a portal's plane has to be
+	 * checked against it - that is what stops a surface with a portal in it
+	 * from pushing the player back out of the hole. The fixture portals sit
+	 * at the origin, in the plane of the floor, so both are consulted here.
 	 */
 	portal1.used = true;
 	portal2.used = true;
@@ -427,6 +428,45 @@ static void test_both_portals_are_consulted_for_each_surface(void)
 
 	TEST_ASSERT_EQUAL_INT_MESSAGE(2, levelFixtureCounts.portalCollisions,
 		"each surface should be tested against both portals");
+}
+
+static void test_a_surface_out_of_both_portal_planes_is_not_consulted(void)
+{
+	/*
+	 * The coplanarity precheck in checkObjectCollisionCell: only a surface
+	 * lying in a portal's plane can need the hole carved out of it. With
+	 * both portals a tile above the floor's plane, the full test would have
+	 * answered no anyway - the point of the precheck is that it is not asked.
+	 */
+	portal1.used = true;
+	portal2.used = true;
+	portal1.position = vect(0, inttof32(1), 0);
+	portal2.position = vect(0, inttof32(1), 0);
+
+	addFloor();
+	physicsObject_struct o = playerAt(roomSpace(1536, 100, 1536));
+
+	checkObjectCollision(&o, &room);
+
+	TEST_ASSERT_EQUAL_INT_MESSAGE(0, levelFixtureCounts.portalCollisions,
+		"a floor out of both portal planes should be prechecked away");
+}
+
+static void test_only_the_portal_in_the_surfaces_plane_is_consulted(void)
+{
+	/* The precheck is per portal, not all-or-nothing: the portal in the
+	 * floor's plane is consulted, the one a tile above it is not. */
+	portal1.used = true;
+	portal2.used = true;
+	portal2.position = vect(0, inttof32(1), 0);
+
+	addFloor();
+	physicsObject_struct o = playerAt(roomSpace(1536, 100, 1536));
+
+	checkObjectCollision(&o, &room);
+
+	TEST_ASSERT_EQUAL_INT_MESSAGE(1, levelFixtureCounts.portalCollisions,
+		"only the in-plane portal should be consulted");
 }
 
 static void test_one_portal_alone_is_not_enough(void)
@@ -1021,6 +1061,8 @@ int main(void)
 
 	RUN_TEST(test_the_portals_are_not_consulted_when_unplaced);
 	RUN_TEST(test_both_portals_are_consulted_for_each_surface);
+	RUN_TEST(test_a_surface_out_of_both_portal_planes_is_not_consulted);
+	RUN_TEST(test_only_the_portal_in_the_surfaces_plane_is_consulted);
 	RUN_TEST(test_one_portal_alone_is_not_enough);
 
 	RUN_TEST(test_a_platform_under_the_player_is_collided_with);

@@ -159,6 +159,19 @@ bool checkObjectCollisionCell(gridCell_struct* gc, physicsObject_struct* o, room
 	const vect3D roomOrigin=convertVect(vect(r->position.x,0,r->position.y));
 	vect3D o1=vectDifference(o->position,roomOrigin);
 
+	//The portals' positions in room-local space, taken once per cell. Only a
+	//rectangle lying in a portal's plane can need the hole carved out of it,
+	//and with these in hand that is a one-compare test per portal on the axis
+	//the rectangle is flat along - no per-rectangle round trip through world
+	//space just to find out the answer was no.
+	const bool portalsPlaced=portal1.used&&portal2.used;
+	vect3D portal1Local=vect(0,0,0), portal2Local=vect(0,0,0);
+	if(portalsPlaced)
+	{
+		portal1Local=vectDifference(portal1.position,roomOrigin);
+		portal2Local=vectDifference(portal2.position,roomOrigin);
+	}
+
 	//The cull box: one radius to each side, but five along gravity, because
 	//the weighted test in resolveSphereSurface reaches sqrt(transY) times
 	//further that way and the box must not cut it short.
@@ -191,14 +204,30 @@ bool checkObjectCollisionCell(gridCell_struct* gc, physicsObject_struct* o, room
 		//variant would derive it a second time for every rectangle
 		const vect3D s=vect(rec->size.x*TILESIZE*2,rec->size.y*HEIGHTUNIT,rec->size.z*TILESIZE*2);
 		vect3D closest=getClosestPointRectangle(p,s,o1);
-		if(portal1.used&&portal2.used)
+		if(portalsPlaced)
 		{
-			//collidePortal works in world space; this is what keeps a surface
-			//with a portal in it from pushing the player back out of the hole.
-			closest=addVect(closest,roomOrigin);
-			collidePortal(r,rec,&portal1,&closest);
-			collidePortal(r,rec,&portal2,&closest);
-			closest=vectDifference(closest,roomOrigin);
+			//The same coplanarity predicate isPortalInRectangle starts with,
+			//hoisted out here: axis choice by the rectangle's flat dimension,
+			//difference against the portal's position, equals() for the
+			//epsilon. A portal straddling two rectangles of one wall matches
+			//both, exactly as before - this must stay a plane test, not a
+			//"which rectangle was hit" cache, or the second rectangle would
+			//push the player out of its half of the hole.
+			int32 d1,d2;
+			if(!rec->size.x){d1=p.x-portal1Local.x;d2=p.x-portal2Local.x;}
+			else if(!rec->size.y){d1=p.y-portal1Local.y;d2=p.y-portal2Local.y;}
+			else{d1=p.z-portal1Local.z;d2=p.z-portal2Local.z;}
+			const bool inPlane1=equals(d1,0), inPlane2=equals(d2,0);
+			if(inPlane1||inPlane2)
+			{
+				//collidePortal works in world space; this is what keeps a
+				//surface with a portal in it from pushing the player back out
+				//of the hole.
+				closest=addVect(closest,roomOrigin);
+				if(inPlane1)collidePortal(r,rec,&portal1,&closest);
+				if(inPlane2)collidePortal(r,rec,&portal2,&closest);
+				closest=vectDifference(closest,roomOrigin);
+			}
 		}
 
 		const bool touched=resolveSphereSurface(o,vectDifference(closest,o1));
