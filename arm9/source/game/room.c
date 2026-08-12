@@ -1,9 +1,34 @@
+/**
+ * @file room.c
+ * @brief The level loader, and whole-room operations.
+ *
+ * Implements @ref room.h. Despite the name, the bulk of this file is the
+ * reader for the level format: readRectangles(), readEntity(),
+ * readLightingData() and @ref newReadMap, which stitches them together.
+ *
+ * @par readEntity
+ * The long switch here is effectively the level format's entity table. Each
+ * entity type is a tag followed by its own parameter layout, and the case
+ * ends by calling that entity's @c create* function. Adding an entity to the
+ * game means adding a case here and a matching writer in editor/io.c - and
+ * the two must agree exactly, since the format is positional with no
+ * self-description.
+ *
+ * addEntityTarget() is what rebuilds the trigger wiring: activators are stored
+ * as indices in the file and resolved back to pointers as entities are created.
+ *
+ * The rest of the file is whole-room geometry: @ref roomResetOrigin,
+ * @ref roomOriginSize, and @ref insertRoom, which merges a second room in at an
+ * offset and orientation - how multi-room levels are assembled from separately
+ * edited pieces.
+ */
+
 #include "game/game_main.h"
 #include "editor/io.h"
+#include "editor/entity.h"
 
 void drawRoomsGame(u8 mode, u16 color)
 {
-	int i;
 	unbindMtl();
 	glPolyFmt(POLY_ALPHA(31) | POLY_CULL_BACK);
 
@@ -24,7 +49,7 @@ void roomOriginSize(room_struct* r, vect3D* o, vect3D* s)
 		m=minVect(addVect(lc->data.position,lc->data.size),m);
 		M=maxVect(lc->data.position,M);
 		M=maxVect(addVect(lc->data.position,lc->data.size),M);
-		NOGBA("%d",lc->data.position.y);
+		NOGBA("%ld",lc->data.position.y);
 		lc=lc->next;
 	}
 
@@ -127,7 +152,7 @@ void insertRoom(room_struct* r1, room_struct* r2, vect3D v, u8 orientation)
 		if(!(orientation%2) || orientation==1)invertRectangle(&rec);
 
 		rec.position=addVect(rec.position,v);
-		rectangle_struct* recp=addRoomRectangle(r1, rec, rec.material, rec.portalable);	
+		rectangle_struct* recp=addRoomRectangle(r1, rec, rec.material, rec.portalable);
 		if(recp)
 		{
 			recp->hide=true; //TEMP ?
@@ -150,13 +175,13 @@ activatorTarget_type entityTargetTypeArray[NUMENTITIES];
 void readRectangle(rectangle_struct* rec, FILE* f)
 {
 	if(!rec || !f)return;
-	
+
 	readVect(&rec->position,f);
 	readVect(&rec->size,f);
 	readVect(&rec->normal,f);
 
 	fread(&rec->portalable,sizeof(bool),1,f);
-	
+
 	u16 mid=0; fread(&mid,sizeof(u16),1,f);
 
 	rec->lightData.lightMap=NULL;
@@ -194,7 +219,7 @@ void readSludgeRectangles(FILE* f)
 	}
 }
 
-void addEntityTarget(u8 k, u8 n, void* target, activatorTarget_type type)
+void addEntityTarget(int k, int n, void* target, activatorTarget_type type)
 {
 	if(!target)return;
 	int i;
@@ -208,9 +233,11 @@ void addEntityTarget(u8 k, u8 n, void* target, activatorTarget_type type)
 	}
 }
 
-void readEntity(u8 i, FILE* f)
+// i indexes the entity*Array tables below, so it must be within NUMENTITIES.
+// readEntities() is what enforces that; do not call this directly.
+void readEntity(int i, FILE* f)
 {
-	if(!f)return;
+	if(!f || i<0 || i>=NUMENTITIES)return;
 	u8 type=0, dir=0; vect3D v;
 	fread(&type, sizeof(u8), 1, f);
 	readVect(&v, f);
@@ -377,7 +404,20 @@ void readEntities(FILE* f)
 {
 	if(!f)return;
 
-	u16 cnt; fread(&cnt,sizeof(u16),1,f);
+	// The count is whatever the file says, but the entity*Array tables are
+	// NUMENTITIES long and the index used to be truncated to a u8 on the way
+	// into readEntity() - so a map claiming more than 64 entities wrote past
+	// them, and one claiming more than 256 wrapped as well. Nothing reads
+	// sequentially after this section (newReadMap fseeks to sludgePosition),
+	// so stopping at the pool size just drops the excess entities.
+	u16 cnt=0;
+	if(fread(&cnt,sizeof(u16),1,f)!=1)return;
+	if(cnt>NUMENTITIES)
+	{
+		NOGBA("entity count %d capped to %d",cnt,NUMENTITIES);
+		cnt=NUMENTITIES;
+	}
+
 	int i; for(i=0;i<cnt;i++)readEntity(i,f);
 	for(i=0;i<cnt;i++)addEntityTarget(i,cnt,entityEntityArray[i],entityTargetTypeArray[i]);
 }
@@ -457,11 +497,13 @@ void readMapInfo(char* filename)
 	dictionary* dic=iniparser_load(filename);
 	setLevelInfo(dictionary_get(dic, "info:title", NULL), dictionary_get(dic, "info:author", NULL));
 	if(!dic)return;
-	
+
 	char* r;
 
+	r=dictionary_get(dic, "info:next", NULL);
+
 	//next map
-	if(r=dictionary_get(dic, "info:next", NULL))
+	if(r)
 	{
 		isNextRoom=true;
 		char str[2048];
@@ -478,7 +520,7 @@ void readMapInfo(char* filename)
 		#else
 			sprintf(str,"%s/%s/maps/%s",basePath,ROOT,r);
 		#endif
-		NOGBA("%s",str);
+		//NOGBA("%s",str);
 
 		setNextMapFilePath(str);
 	}
@@ -489,7 +531,6 @@ void readMapInfo(char* filename)
 void newReadMap(char* filename, room_struct* r, u8 flags)
 {
 	if(!r)r=&gameRoom;
-	char fn[1024];
 	FILE* f=fopen(filename,"rb");
 	if(!f)return;
 
@@ -531,6 +572,6 @@ void newReadMap(char* filename, room_struct* r, u8 flags)
 		filename[l-3]='i';
 		readMapInfo(filename);
 	}
-	
+
 	fclose(f);
 }

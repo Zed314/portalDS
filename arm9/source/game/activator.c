@@ -1,16 +1,30 @@
+/**
+ * @file activator.c
+ * @brief Dispatching a trigger to whatever it drives.
+ *
+ * Implements @ref activator.h. Almost all of it is the switch on
+ * @ref activatorTarget_type in useActivator()/unuseActivator(), which casts
+ * each stored @c void* back to its real type and calls the right thing:
+ * dispensers dispense, platforms start, doors open.
+ *
+ * Adding a new triggerable entity means adding a tag to the enum and a case to
+ * both switches - the type tag is the entire dispatch mechanism, since C has
+ * nothing better to offer here.
+ */
+
 #include "game/game_main.h"
 
 void initActivator(activator_struct* a)
 {
 	if(!a)return;
-	
+
 	a->numSlots=0;
 }
 
 void useSlot(activatorSlot_struct* as)
 {
 	if(!as)return;
-	
+
 	switch(as->type)
 	{
 		case DISPENSER_TARGET:
@@ -37,13 +51,17 @@ void useSlot(activatorSlot_struct* as)
 				wd->override=true;
 			}
 			break;
+		default :
+			{
+				// do nothing
+			}
 	}
 }
 
 void unuseSlot(activatorSlot_struct* as)
 {
 	if(!as)return;
-	
+
 	switch(as->type)
 	{
 		case DISPENSER_TARGET:
@@ -70,6 +88,10 @@ void unuseSlot(activatorSlot_struct* as)
 				wd->override=false;
 			}
 			break;
+		default :
+			{
+				// do nothing
+			}
 	}
 }
 
@@ -97,12 +119,12 @@ void addActivatorTarget(activator_struct* a, void* target, activatorTarget_type 
 {
 	if(!a)return;
 	if(a->numSlots>=NUMACTIVATORSLOTS)return;
-	
+
 	activatorSlot_struct* as=&a->slot[a->numSlots];
-	
+
 	as->target=target;
 	as->type=type;
-	
+
 	a->numSlots++;
 	unuseActivator(a);
 }

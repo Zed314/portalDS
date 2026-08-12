@@ -1,0 +1,7 @@
+build/
+tests/build/
+*.elf
+*.nds
+out/
+docs/api/
+doxygen.log

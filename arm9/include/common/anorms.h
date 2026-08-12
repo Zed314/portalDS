@@ -1,3 +1,24 @@
+/**
+ * @file anorms.h
+ * @brief Quake II's 162 entry normal table, packed for the DS geometry engine.
+ *
+ * MD2 does not store a normal per vertex. It stores a *byte* per vertex,
+ * indexing this fixed table of 162 directions spread evenly over a sphere -
+ * one of the tricks that keeps the format so compact.
+ *
+ * This file is not a normal header: it is a bare brace-enclosed initialiser
+ * list, included directly as the body of an array definition:
+ * @code
+ * u32 anorms_table[162] =
+ *  #include "common/anorms.h"
+ * ;
+ * @endcode
+ *
+ * Values here are pre-packed into the single word @c GFX_NORMAL expects.
+ * @ref anorms2.h holds the same table as unpacked @ref vect3D, for the code
+ * that needs to do arithmetic with the normals rather than just submit them.
+ */
+
 /*
  *	anorms.h - header file
  */

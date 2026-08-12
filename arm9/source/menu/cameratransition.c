@@ -1,3 +1,15 @@
+/**
+ * @file cameratransition.c
+ * @brief Interpolating the menu camera between fixed viewpoints.
+ *
+ * Implements @ref cameratransition.h. @ref updateCameraTransition advances the
+ * progress counter and interpolates position and angle between the two
+ * viewpoints, so moving between menu pages is a glide rather than a cut.
+ *
+ * The @ref cameraStates table at the top is the set of viewpoints, indexed by
+ * page.
+ */
+
 #include "menu/menu_main.h"
 
 cameraState_struct cameraStates[]={{(vect3D){156,8000,13000}, (vect3D){0,0,0}},

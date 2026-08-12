@@ -1,9 +1,22 @@
+/**
+ * @file elevator.c
+ * @brief The lifts that carry the player between chambers.
+ *
+ * Implements @ref elevator.h. @ref updateElevator is a state machine walking
+ * @ref elevatorState_type strictly in order: arrive, open, wait, close, leave.
+ * The lift's collision floor and door face move and toggle with it, so the
+ * player is carried and then sealed in.
+ *
+ * Departure is what ends a level - see @ref updateWallDoors, which watches for
+ * it and calls @ref endGame.
+ */
+
 #include "game/game_main.h"
 
 #define ELEVATOR_SPEED (64)
 
-md2Model_struct elevatorModel;
-md2Model_struct elevatorFrameModel;
+static md2Model_struct elevatorModel;
+static md2Model_struct elevatorFrameModel;
 
 void initElevators(void)
 {
@@ -104,7 +117,7 @@ void drawElevator(elevator_struct* ev)
 		setupObjectLighting(NULL, ev->position, &params);
 
 		glTranslate3f32(ev->position.x,ev->position.y,ev->position.z);
-		
+
 		switch(ev->direction&(~(1<<ELEVATOR_UPDOWNBIT)))
 		{
 			case 0:
@@ -119,7 +132,7 @@ void drawElevator(elevator_struct* ev)
 			default:
 				break;
 		}
-		
+
 		renderModelFrameInterp(0,0,0,&elevatorFrameModel,params,false,NULL,RGB15(31,31,31));
 
 		bool up=(ev->direction&(1<<ELEVATOR_UPDOWNBIT))!=0;

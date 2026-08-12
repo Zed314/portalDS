@@ -1,12 +1,30 @@
+/**
+ * @file memory.c
+ * @brief State-scoped allocation tracking.
+ *
+ * Implements @ref memory.h. A flat table of at most @ref MAX_MALLOC pointers,
+ * so that @ref freeState can release everything a state took in one call.
+ *
+ * Two things to be aware of when reading this:
+ *  - @ref reAlloc does not preserve contents. It frees and re-allocates, so
+ *    callers must treat the returned block as uninitialised;
+ *  - @ref freeState walks the table backwards, releasing the most recent
+ *    allocation first. With newlib's allocator that lets the heap top come
+ *    straight back down instead of leaving a fragmented gap.
+ *
+ * Allocation failures are logged through @ref NOGBA rather than being fatal,
+ * which is why the callers still have to check for NULL.
+ */
+
 #include "common/general.h"
 #include <errno.h>
 
-void *mallocList[MAX_MALLOC];
+static void *mallocList[MAX_MALLOC];
 
 void initMalloc()
 {
 	int i;
-	
+
 	for(i=0;i<MAX_MALLOC;i++)
 	{
 		mallocList[i]=NULL;

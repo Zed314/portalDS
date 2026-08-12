@@ -1,6 +1,20 @@
+/**
+ * @file compression.c
+ * @brief 16 bit run-length compression for level data.
+ *
+ * Implements @ref compress.h. Adapted from GRIT, with the unit widened from
+ * bytes to @c u16 because level data is an array of 16 bit block ids - byte
+ * RLE would break every run in half at the high byte and compress almost
+ * nothing.
+ *
+ * The stream keeps GBA/DS BIOS-style framing: a header word holding a format
+ * tag and the 24 bit decompressed size, then alternating literal and run
+ * blocks.
+ */
+
 #include "common/general.h"
 
-// code borrowed from GRIT 
+// code borrowed from GRIT
 // http://www.coranac.com/projects/grit/
 
 //made it into 16bit compression code because screw it 8bit sucks
@@ -12,7 +26,7 @@ enum ECprsTag
 {
 	CPRS_FAKE_TAG	= 0x00,		//<! No compression.
 	CPRS_LZ77_TAG	= 0x10,		//<! GBA LZ77 compression.
-	CPRS_HUFF_TAG	= 0x20, 
+	CPRS_HUFF_TAG	= 0x20,
 //	CPRS_HUFF4_TAG	= 0x24,		//<! GBA Huffman, 4bit.
 	CPRS_HUFF8_TAG	= 0x28,		//<! GBA Huffman, 8bit.
 	CPRS_RLE_TAG	= 0x30,		//<! GBA RLE compression.
@@ -21,7 +35,7 @@ enum ECprsTag
 };
 
 //! Create the compression header word (little endian)
-u32	cprs_create_header(uint size, u8 tag)
+u32	cprs_create_header(uint32_t size, u8 tag)
 {
 	u8 data[4];
 
@@ -32,18 +46,19 @@ u32	cprs_create_header(uint size, u8 tag)
 	return *(u32*)data;
 }
 
-uint compressRLE(u16 **dst, u16 *srcD, uint srcS)
+uint32_t compressRLE(u16 **dst, u16 *srcD, uint32_t srcS)
 {
 	if(!srcD || !dst)return 0;
 
-	uint ii, rle, non;
-	u16 curr, prev;
+	uint32_t ii, rle, non;
+	u16 curr =0u;
+	u16 prev;
 
 	// Annoyingly enough, rle _can_ end up being larger than
 	// the original. A checker-board will do it for example.
 	// if srcS is the size of the alternating pattern, then
 	// the endresult will be 4 + srcS + (srcS+0x80-1)/0x80.
-	uint dstS= 8+2*(srcS*2);
+	uint32_t dstS= 8+2*(srcS*2);
 	u16 *dstD = (u16*)malloc(dstS), *dstL= dstD;
 	if(!dstD)return 0;
 
@@ -56,12 +71,12 @@ uint compressRLE(u16 **dst, u16 *srcD, uint srcS)
 	{
 		if(ii!=srcS)curr=srcD[ii];
 
-		if(rle==0x82 || ii==srcS)prev= ~curr;	// stop rle			
+		if(rle==0x82 || ii==srcS)prev= ~curr;	// stop rle
 
 		if(rle<3 && (non+rle > 0x80 || ii==srcS))	// ** mini non
 		{
 			non += rle;
-			dstL[0]= non-2;	
+			dstL[0]= non-2;
 			memcpy(&dstL[1], &srcD[ii-non+1], (non-1)*2);
 			dstL += non;
 			non= rle= 1;
@@ -81,7 +96,7 @@ uint compressRLE(u16 **dst, u16 *srcD, uint srcS)
 			{
 				dstL[0]= 0x80 | (rle-3);
 				dstL[1]= srcD[ii-1];
-				NOGBA("RLE1 : %d %d",rle,dstL[1]);
+				NOGBA("RLE1 : %lu %d",rle,dstL[1]);
 				dstL += 2;
 				non= 0;
 				rle= 1;
@@ -91,7 +106,7 @@ uint compressRLE(u16 **dst, u16 *srcD, uint srcS)
 		}
 		prev= curr;
 	}
-	
+
 	dstS=ALIGN4(dstL-dstD)+4;
 
 	dstL=(u16*)malloc(dstS*2);
@@ -102,7 +117,11 @@ uint compressRLE(u16 **dst, u16 *srcD, uint srcS)
 	}
 
 	*(u32*)dstL=cprs_create_header(srcS, CPRS_RLE_TAG);
-	memcpy(dstL+4, dstD, dstS*2-4);
+	// dstS counts u16s and includes the 4 element (8 byte) gap the payload
+	// starts after - which is what decompressRLE skips with src+4 - so the
+	// payload is dstS*2-8 bytes, not dstS*2-4. Copying 4 bytes more than
+	// that ran off the end of the allocation on every single call.
+	memcpy(dstL+4, dstD, dstS*2-8);
 	*dst=dstL;
 
 	free(dstD);
@@ -110,29 +129,41 @@ uint compressRLE(u16 **dst, u16 *srcD, uint srcS)
 	return dstS;
 }
 
-uint decompressRLE(u16 *dst, u16 *src, uint dstS)
+uint32_t decompressRLE(u16 *dst, u16 *src, uint32_t dstS, uint32_t srcS)
 {
 	if(!dst || !src)return 0;
 
-	uint ii, size=0;
+	// The stream says how much comes out, never how much goes in, so this used
+	// to walk the source until the output was full - reading as far past the
+	// end of a truncated or hand edited file as that took. srcS bounds it.
+	// Anything the source runs out before producing is left as the caller had
+	// it, and the count of what was actually written comes back.
+	if(srcS<4)return 0;
+
+	uint32_t ii, size=0;
 	u16 *srcL=src+4, *dstD=dst;
+	const u16 *srcEnd=src+srcS;
 
 	for(ii=0; ii<dstS; ii += size)
 	{
 		// Get header byte
+		if(srcL>=srcEnd)return ii;
 		u32 header= *srcL++;
 
 		if(header&0x80)		// compressed stint
 		{
+			if(srcL>=srcEnd)return ii;
 			size= min( (header&~0x80)+3, dstS-ii);
 			// NOGBA("RLE1- : %d %d",size,*srcL);
 			// memset(&dstD[ii], *srcL, size);
-			int j; for(j=0;j<size;j++)dstD[ii+j]=*srcL; //can't used memset for 16bit
+			uint32_t j; for(j=0;j<size;j++)dstD[ii+j]=*srcL; //can't used memset for 16bit
 			srcL++;
 		}
 		else				// noncompressed stint
 		{
 			size= min(header+1, dstS-ii);
+			if((uint32_t)(srcEnd-srcL)<size)size=(uint32_t)(srcEnd-srcL);
+			if(!size)return ii;
 			memcpy(&dstD[ii], srcL, size*2);
 			// memset(&dstD[ii], 0, size*2);
 			// NOGBA("RLE2- : %d",size);

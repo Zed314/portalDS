@@ -1,9 +1,21 @@
+/**
+ * @file door.c
+ * @brief Sliding doors.
+ *
+ * Implements @ref door.h. @ref updateDoors drives each door's model animation
+ * from door_struct::active and, crucially, toggles its two collision faces
+ * through @ref toggleAAR so the ARM7 stops colliding with an open doorway.
+ *
+ * Forgetting that second half is the classic bug here: the door looks open but
+ * cubes still bounce off it.
+ */
+
 #include "game/game_main.h"
 
-door_struct door[NUMDOORS];
-md2Model_struct doorModel;
-SFX_struct* doorOpenSFX;
-SFX_struct* doorCloseSFX;
+static door_struct door[NUMDOORS];
+static md2Model_struct doorModel;
+static SFX_struct* doorOpenSFX;
+static SFX_struct* doorCloseSFX;
 
 void initDoors(void)
 {
@@ -118,9 +130,9 @@ void drawDoor(door_struct* d)
 		setupObjectLighting(NULL, d->position, &params);
 
 		glTranslate3f32(d->position.x,d->position.y,d->position.z);
-		
+
 		if(d->orientation)glRotateYi(8192);
-		
+
 		renderModelFrameInterp(d->modelInstance.currentFrame,d->modelInstance.nextFrame,d->modelInstance.interpCounter,d->modelInstance.model,params,false,d->modelInstance.palette,RGB15(31,31,31));
 	glPopMatrix(1);
 }

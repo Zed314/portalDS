@@ -1,10 +1,31 @@
+/**
+ * @file blocks.c
+ * @brief The block array, block faces, and the conversion to rectangles.
+ *
+ * Implements @ref blocks.h - the editor's model of a level and the bridge back
+ * to the game's.
+ *
+ *  - **the array** - a dense grid of @ref BLOCK_TYPE words, each a bitfield of
+ *    solid/portalable/sludge flags. @ref getBlock reads out of range safely,
+ *    which is what lets the face generator inspect a block's neighbours without
+ *    special-casing the edges.
+ *  - **faces** - @ref generateBlockFacesRange rebuilds the visible faces over a
+ *    region. The @c outskirts flag matters: carving one block exposes faces on
+ *    the blocks around it, so the region has to be widened.
+ *  - **rectangles** - @ref generateOptimizedRectangles is the important one. It
+ *    builds an occupancy map per plane and repeatedly extracts the largest
+ *    rectangle from it (@ref getMaxRectangle), so a flat wall becomes a handful
+ *    of quads rather than one per block face. Without this no level would fit
+ *    in the polygon budget.
+ */
+
 #include "editor/editor_main.h"
 
-blockFace_struct* blockFacePool=NULL;
-blockFace_struct* blockFacePoolHead=NULL;
+
+
 
 vect3D faceNormals[]={vect(inttof32(1),0,0),vect(-inttof32(1),0,0),vect(0,inttof32(1),0),vect(0,-inttof32(1),0),vect(0,0,inttof32(1)),vect(0,0,-inttof32(1))};
-u16 faceColors[]={RGB15(31,31,31),RGB15(25,25,25),RGB15(20,20,20),RGB15(15,15,15),RGB15(10,10,10),RGB15(5,5,5)}; //TEMP
+
 u32 packedVertex[6][4]={{NORMAL_PACK((1<<5),-(1<<5),-(1<<5)), NORMAL_PACK((1<<5),(1<<5),-(1<<5)), NORMAL_PACK((1<<5),(1<<5),(1<<5)), NORMAL_PACK((1<<5),-(1<<5),(1<<5))},
 						{NORMAL_PACK(-(1<<5),-(1<<5),-(1<<5)), NORMAL_PACK(-(1<<5),-(1<<5),(1<<5)), NORMAL_PACK(-(1<<5),(1<<5),(1<<5)), NORMAL_PACK(-(1<<5),(1<<5),-(1<<5))},
 						{NORMAL_PACK(-(1<<5),(1<<5),-(1<<5)), NORMAL_PACK(-(1<<5),(1<<5),(1<<5)), NORMAL_PACK((1<<5),(1<<5),(1<<5)), NORMAL_PACK((1<<5),(1<<5),-(1<<5))},
@@ -14,12 +35,17 @@ u32 packedVertex[6][4]={{NORMAL_PACK((1<<5),-(1<<5),-(1<<5)), NORMAL_PACK((1<<5)
 vect3D faceOrigin[]={vect(inttof32(1),-inttof32(1),-inttof32(1)), vect(-inttof32(1),-inttof32(1),-inttof32(1)),
 					vect(-inttof32(1),inttof32(1),-inttof32(1)), vect(-inttof32(1),-inttof32(1),-inttof32(1)),
 					vect(-inttof32(1),-inttof32(1),inttof32(1)), vect(-inttof32(1),-inttof32(1),-inttof32(1))};
-vect3D faceSize[]={vect(0,inttof32(1),inttof32(1)), vect(0,inttof32(1),inttof32(1)),
-					vect(inttof32(1),0,inttof32(1)), vect(inttof32(1),0,inttof32(1)),
-					vect(inttof32(1),inttof32(1),0), vect(inttof32(1),inttof32(1),0)};
+
 u8 oppositeDirection[]={1,0,3,2,5,4};
 
-mtlImg_struct *wallTexture, *floorTexture, *unportalableTexture;
+static blockFace_struct* blockFacePool=NULL;
+static blockFace_struct* blockFacePoolHead=NULL;
+static mtlImg_struct *wallTexture, *floorTexture, *unportalableTexture;
+static u16 faceColors[]={RGB15(31,31,31),RGB15(25,25,25),RGB15(20,20,20),RGB15(15,15,15),RGB15(10,10,10),RGB15(5,5,5)}; //TEMP
+static vect3D faceSize[]={vect(0,inttof32(1),inttof32(1)), vect(0,inttof32(1),inttof32(1)),
+					vect(inttof32(1),0,inttof32(1)), vect(inttof32(1),0,inttof32(1)),
+					vect(inttof32(1),inttof32(1),0), vect(inttof32(1),inttof32(1),0)};
+
 
 void initBlockFacePool(void)
 {
@@ -43,7 +69,7 @@ void initBlocks(void)
 {
 	blockFacePool=NULL;
 	initBlockFacePool();
-	
+
 	int i;
 	for(i=0;i<6;i++)
 	{
@@ -60,7 +86,7 @@ void initBlocks(void)
 		faceOrigin[i]=vect(mulf32(faceOrigin[i].x,BLOCKSIZEX)/2,mulf32(faceOrigin[i].y,BLOCKSIZEY)/2,mulf32(faceOrigin[i].z,BLOCKSIZEZ)/2);
 		faceSize[i]=vect(mulf32(faceSize[i].x,BLOCKSIZEX),mulf32(faceSize[i].y,BLOCKSIZEY),mulf32(faceSize[i].z,BLOCKSIZEZ));
 	}
-	
+
 	wallTexture=createTexture("floor6.pcx", "textures");
 	floorTexture=createTexture("floor3.pcx", "textures");
 	unportalableTexture=createTexture("floor7.pcx", "textures");
@@ -74,7 +100,9 @@ BLOCK_TYPE getBlock(BLOCK_TYPE* ba, s8 x, s8 y, s8 z)
 
 void setBlock(BLOCK_TYPE* ba, u8 x, u8 y, u8 z, BLOCK_TYPE v)
 {
-	if(!ba || x<0 || y<0 || z<0 || x>=ROOMARRAYSIZEX || y>=ROOMARRAYSIZEY || z>=ROOMARRAYSIZEZ)return;
+	//unlike getBlock's s8s, unsigned coordinates cannot be negative - a
+	//negative int wraps to >=256 and the size checks catch it
+	if(!ba || x>=ROOMARRAYSIZEX || y>=ROOMARRAYSIZEY || z>=ROOMARRAYSIZEZ)return;
 	ba[x+y*ROOMARRAYSIZEX+z*ROOMARRAYSIZEX*ROOMARRAYSIZEY]=v;
 }
 
@@ -122,7 +150,7 @@ void changePortalableBlockDirection(BLOCK_TYPE* ba, u8 x, u8 y, u8 z, u16 u, boo
 	setBlock(ba, x, y, z, v);
 }
 
-void changeSludgeBlock(BLOCK_TYPE* ba, u8 x, u8 y, u8 z, u16 u, bool nosludge)
+void changeSludgeBlock(BLOCK_TYPE* ba, u8 x, u8 y, u8 z, __attribute__((unused)) u16 u, bool nosludge)
 {
 	if(!ba)return;
 	BLOCK_TYPE v=getBlock(ba, x, y, z);
@@ -286,7 +314,7 @@ void initEditorRoom(editorRoom_struct* er)
 void freeBlockFace(blockFace_struct* bf)
 {
 	if(!bf)return;
-	
+
 	bf->next=blockFacePool;
 	blockFacePool=bf;
 }
@@ -300,7 +328,7 @@ void freeBlockFaceList(blockFace_struct** l)
 void freeEditorRoom(editorRoom_struct* er)
 {
 	if(!er)return;
-	
+
 	if(er->blockArray)free(er->blockArray);
 	freeBlockFaceList(&er->blockFaceList);
 }
@@ -334,7 +362,7 @@ blockFace_struct* createBlockFace(u8 x, u8 y, u8 z, u8 dir)
 
 void addBlockFace(blockFace_struct** l, blockFace_struct* bf)
 {
-	if(!l || !bf)return;	
+	if(!l || !bf)return;
 	bf->next=*l;
 	*l=bf;
 }
@@ -359,10 +387,10 @@ void generateBlockFace(BLOCK_TYPE* ba, blockFace_struct** l, u8 x, u8 y, u8 z, u
 void generateBlockFaces(BLOCK_TYPE* ba, blockFace_struct** l, u8 x, u8 y, u8 z)
 {
 	if(!ba || !l || x>=ROOMARRAYSIZEX || y>=ROOMARRAYSIZEY || z>=ROOMARRAYSIZEZ)return;
-	
+
 	BLOCK_TYPE v=getBlock(ba,x,y,z);
 	if(!v)return;
-	
+
 	generateBlockFace(ba, l, x, y, z, 0);
 	generateBlockFace(ba, l, x, y, z, 1);
 	generateBlockFace(ba, l, x, y, z, 2);
@@ -384,7 +412,7 @@ blockFace_struct* findBlockFace(blockFace_struct* l, u8 x, u8 y, u8 z, u8 direct
 void generateBlockFacesRange(BLOCK_TYPE* ba, blockFace_struct** l, vect3D o, vect3D s, bool outskirts)
 {
 	if(!ba)return;
-	
+
 	int i, j, k;
 	for(i=o.x;i<o.x+s.x;i++)
 	{
@@ -687,13 +715,13 @@ bool collideLineBlockFace(blockFace_struct* bf, vect3D o, vect3D v, int32 d, int
 	{
 		vect3D p=addVect(faceOrigin[bf->direction],getBlockPosition(bf->x,bf->y,bf->z));
 		vect3D s=faceSize[bf->direction];
-		
+
 		int32 p2=dotProduct(vectDifference(p,o),n);
 		int32 k=divf32(p2,p1);
 		if(k>d || k<0){return false;}
 		vect3D i=addVect(o,vectMult(v,k));
 		i=vectDifference(i,p);
-		
+
 		bool r=true;
 		if(s.x)
 		{
@@ -723,7 +751,7 @@ blockFace_struct* collideLineBlockFaceListClosest(blockFace_struct* l, vect3D o,
 	int32 closestDist=1<<26;
 	blockFace_struct* bf=NULL;
 
-	vect3D p=getBlockPosition(l->x,l->y,l->z);
+	// vect3D p=getBlockPosition(l->x,l->y,l->z);
 
 	while(l)
 	{
@@ -740,9 +768,9 @@ blockFace_struct* collideLineBlockFaceListClosest(blockFace_struct* l, vect3D o,
 void drawBlockFace(blockFace_struct* bf, BLOCK_TYPE* ba)
 {
 	if(!bf || !bf->draw)return;
-	
+
 	u32* vtxPtr=packedVertex[bf->direction];
-	
+
 	BLOCK_TYPE v=getBlock(ba,bf->x,bf->y,bf->z);
 
 	if(v&(1<<(bf->direction+1)))applyMTL(unportalableTexture);
@@ -753,17 +781,17 @@ void drawBlockFace(blockFace_struct* bf, BLOCK_TYPE* ba)
 
 	u8 textmult=1; //temp
 	if(bf->direction==2)textmult=2;
-	
+
 	glPushMatrix();
-	
+
 		glTranslate3f32(inttof32(bf->x),inttof32(bf->y),inttof32(bf->z));
-	
+
 		GFX_COLOR=faceColors[bf->direction];
 
 		if(bf->direction==2 && v&BLOCK_SLUDGE)GFX_COLOR=RGB15(2,15,2);
-	
+
 		GFX_BEGIN=GL_QUADS;
-		
+
 		GFX_TEX_COORD=TEXTURE_PACK(0*16, 0*16);
 		GFX_VERTEX10=*vtxPtr++;
 		GFX_TEX_COORD=TEXTURE_PACK(64*textmult*16, 0*16);
@@ -772,14 +800,14 @@ void drawBlockFace(blockFace_struct* bf, BLOCK_TYPE* ba)
 		GFX_VERTEX10=*vtxPtr++;
 		GFX_TEX_COORD=TEXTURE_PACK(0*16, 64*textmult*16);
 		GFX_VERTEX10=*vtxPtr++;
-	
+
 	glPopMatrix(1);
 }
 
 void drawBlockFaceList(blockFace_struct* l, BLOCK_TYPE* ba)
 {
 	if(!l)return;
-		
+
 	while(l)
 	{
 		drawBlockFace(l, ba);
@@ -790,16 +818,16 @@ void drawBlockFaceList(blockFace_struct* l, BLOCK_TYPE* ba)
 void editorRoomTransform(void)
 {
 	glScalef32((BLOCKSIZEX),(BLOCKSIZEY),(BLOCKSIZEZ));
-	glTranslate3f32(inttof32(-ROOMARRAYSIZEX/2),inttof32(-ROOMARRAYSIZEY/2),inttof32(-ROOMARRAYSIZEZ/2));	
+	glTranslate3f32(inttof32(-ROOMARRAYSIZEX/2),inttof32(-ROOMARRAYSIZEY/2),inttof32(-ROOMARRAYSIZEZ/2));
 }
 
 void drawEditorRoom(editorRoom_struct* er)
 {
 	if(!er)return;
-		
+
 	glPolyFmt(POLY_ALPHA(31) | POLY_CULL_BACK | POLY_ID(1));
 	GFX_COLOR=RGB15(31,31,31);
-	
+
 	glPushMatrix();
 		editorRoomTransform();
 		drawBlockFaceList(er->blockFaceList, er->blockArray);

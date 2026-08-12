@@ -1,0 +1,56 @@
+/**
+ * @file McuASANconfig.h
+ * @brief Build-time configuration for @ref McuASAN.h.
+ *
+ * Every setting is guarded so any of them can be overridden
+ * from the Makefile without editing this file.
+ *
+ * The memory window described here is the DSi's: 16MB starting at 0x2000000.
+ * On an original DS only the first 4MB exists, which is harmless - the shadow
+ * map simply covers addresses that are never touched.
+ */
+
+/*
+ * Copyright (c) 2021, Erich Styger
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
+#ifndef MCUASANCONFIG_H_
+#define MCUASANCONFIG_H_
+
+#ifndef McuASAN_CONFIG_IS_ENABLED
+  #define McuASAN_CONFIG_IS_ENABLED     (0)
+  /*!< 1: ASAN is enabled; 0: ASAN is disabled */
+#endif
+
+#ifndef McuASAN_CONFIG_CHECK_MALLOC_FREE
+  #define McuASAN_CONFIG_CHECK_MALLOC_FREE  (1)
+  /*!< 1: check malloc() and free() */
+#endif
+
+#ifndef McuASAN_CONFIG_APP_MEM_START
+  #define McuASAN_CONFIG_APP_MEM_START (0x2000000ull) //DSi main memory starts here
+  /*!< base RAM address */
+#endif
+
+#ifndef McuASAN_CONFIG_APP_MEM_SIZE
+  #define McuASAN_CONFIG_APP_MEM_SIZE  (16*1024*1024ull) //Nintendo DSi has close to 16 MiB of ram
+  /*!< Memory size in bytes */
+#endif
+
+#if McuASAN_CONFIG_CHECK_MALLOC_FREE
+#ifndef McuASAN_CONFIG_MALLOC_RED_ZONE_BORDER
+  #define McuASAN_CONFIG_MALLOC_RED_ZONE_BORDER  (8ull)
+  //red zone border in bytes around memory blocks. Must be larger than sizeof(size_t)! 
+  //must also be a multiple of the fundamental alignment given by malloc()
+#endif
+
+#ifndef McuASAN_CONFIG_FREE_QUARANTINE_LIST_SIZE
+  #define McuASAN_CONFIG_FREE_QUARANTINE_LIST_SIZE  (7)
+  /*!< list of free blocks in quarantine until they are released. Use 0 for no list. */
+#endif
+
+#endif /* McuASAN_CONFIG_CHECK_MALLOC_FREE */
+
+#endif /* MCUASANCONFIG_H_ */

@@ -1,3 +1,16 @@
+/**
+ * @file editor.c
+ * @brief The editor state: setup, frame loop and teardown.
+ *
+ * Implements @ref editor_ex.h. Deliberately thin - it sets up video modes,
+ * VRAM banks and the 3D engine, then hands everything to
+ * @ref initRoomEdition and @ref updateRoomEditor.
+ *
+ * Note @c lcdMainOnBottom() at the top of @ref initEditor - the editor puts the
+ * 3D view on the bottom screen so it can be drawn on directly with the stylus,
+ * which is the opposite of the game. @ref switchScreens flips this at runtime.
+ */
+
 #include "editor/editor_main.h"
 
 void editorVBL(void)

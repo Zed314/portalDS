@@ -1,12 +1,26 @@
+/**
+ * @file selection.c
+ * @brief Dragging out a region of blocks, and the menu that follows it.
+ *
+ * Implements @ref selection.h. @ref updateSelection tracks the stylus, extends
+ * the box between the start face and the current one, and puts up whichever
+ * context menu matches the resulting shape - planar, ground or volume.
+ *
+ * @ref adjustSelection is the subtle one. After an edit the block faces the
+ * selection referred to may have been freed and regenerated, so the three faces
+ * are passed back in *by value* and the selection is re-resolved against the
+ * new face list. Holding the old pointers instead would be a use-after-free
+ * every time you dragged a wall.
+ */
+
 #include "editor/editor_main.h"
 
 selection_struct editorSelection;
-extern editorRoom_struct editorRoom;
 
 void initSelection(selection_struct* s)
 {
 	if(!s)s=&editorSelection;
-	
+
 	s->firstFace=s->secondFace=NULL;
 	s->origin=s->size=vect(0,0,0);
 	s->selectingTarget=false;
@@ -48,18 +62,18 @@ void updateSelection(selection_struct* s)
 {
 	if(!s)s=&editorSelection;
 	if(!s->active || (!s->entity && (!s->firstFace || !s->secondFace)))return;
-	
+
 	if(s->entity)
 	{
 		s->planar=false;
 		s->origin=s->entity->position;
 		s->size=vect(1,1,1);
 	}else{
-		s->planar=(s->firstFace->direction==s->secondFace->direction) && 
+		s->planar=(s->firstFace->direction==s->secondFace->direction) &&
 				   (((s->firstFace->direction==0 || s->firstFace->direction==1) && s->firstFace->x==s->secondFace->x)
 				 || ((s->firstFace->direction==2 || s->firstFace->direction==3) && s->firstFace->y==s->secondFace->y)
 				 || ((s->firstFace->direction==4 || s->firstFace->direction==5) && s->firstFace->z==s->secondFace->z));
-		
+
 		if(s->planar)
 		{
 			s->origin=vect(s->firstFace->x,s->firstFace->y,s->firstFace->z);
@@ -130,7 +144,7 @@ void drawPath(vect3D o, vect3D t)
 			glTranslate3f32(0,inttof32(v.y),0);
 			GFX_VERTEX10=0;
 			GFX_VERTEX10=0;
-			
+
 			GFX_VERTEX10=0;
 			glTranslate3f32(0,0,inttof32(v.z));
 			GFX_VERTEX10=0;
@@ -142,20 +156,20 @@ void drawSelection(selection_struct* s)
 {
 	if(!s)s=&editorSelection;
 	if(!s->active || (!s->entity && (!s->firstFace || !s->secondFace)))return;
-	
+
 	blockFace_struct* bf=s->firstFace;
-	
+
 	if(s->planar && !s->entity)
 	{
 		u32* vtxPtr=packedVertex[bf->direction];
 		vect3D n=faceNormals[bf->direction];
-		
+
 		unbindMtl();
-		
+
 		glPolyFmt(POLY_ALPHA(15) | POLY_CULL_NONE | POLY_ID(8));
 
 		GFX_COLOR=(s->error)?RGB15(31,0,0):(RGB15(29,15,3));
-		
+
 		glPushMatrix();
 			editorRoomTransform();
 			glTranslate3f32(-inttof32(1)/2,-inttof32(1)/2,-inttof32(1)/2);
@@ -163,21 +177,21 @@ void drawSelection(selection_struct* s)
 			glTranslate3f32(n.x/16, n.y/16, n.z/16);
 			glScalef32(inttof32(s->size.x),inttof32(s->size.y),inttof32(s->size.z));
 			glTranslate3f32(inttof32(1)/2,inttof32(1)/2,inttof32(1)/2);
-				
+
 			GFX_BEGIN=GL_QUADS;
-			
+
 			GFX_VERTEX10=*vtxPtr++;
 			GFX_VERTEX10=*vtxPtr++;
 			GFX_VERTEX10=*vtxPtr++;
-			GFX_VERTEX10=*vtxPtr++;		
+			GFX_VERTEX10=*vtxPtr++;
 		glPopMatrix(1);
 	}else if(!(s->entity && !s->entity->placed))
 	{
 		u32* vtxPtr=(u32*)packedVertex;
-		
+
 		unbindMtl();
-		
-		glPushMatrix();		
+
+		glPushMatrix();
 			editorRoomTransform();
 
 			if(s->entity && s->entity->target)drawPath(s->entity->position, s->entity->target->position);
@@ -189,18 +203,18 @@ void drawSelection(selection_struct* s)
 			glTranslate3f32(inttof32(s->origin.x),inttof32(s->origin.y),inttof32(s->origin.z));
 			glScalef32(inttof32(s->size.x),inttof32(s->size.y),inttof32(s->size.z));
 			glTranslate3f32(inttof32(1)/2,inttof32(1)/2,inttof32(1)/2);
-				
+
 			GFX_BEGIN=GL_QUADS;
-			int i;for(i=0;i<6*4;i++)GFX_VERTEX10=*vtxPtr++;	
+			int i;for(i=0;i<6*4;i++)GFX_VERTEX10=*vtxPtr++;
 		glPopMatrix(1);
 	}
-	
+
 	s->error=false;
 }
 
 //SELECTION CONTEXT BUTTONS DEFINITION
 
-void fillButtonFunction(sguiButton_struct* b)
+void fillButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace)return;
@@ -212,7 +226,7 @@ void fillButtonFunction(sguiButton_struct* b)
 	adjustSelection(&editorRoom, s, oldFirstFace, oldSecondFace, oldCurrentFace, vect(0,0,0));
 }
 
-void emptyButtonFunction(sguiButton_struct* b)
+void emptyButtonFunction(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace)return;
@@ -224,7 +238,7 @@ void emptyButtonFunction(sguiButton_struct* b)
 	adjustSelection(&editorRoom, s, oldFirstFace, oldSecondFace, oldCurrentFace, vect(0,0,0));
 }
 
-void makeUnportalableButton(sguiButton_struct* b)
+void makeUnportalableButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -232,7 +246,7 @@ void makeUnportalableButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRange(editorRoom.blockArray, changePortalableBlockDirection, editorRoom.blockFaceList, s->origin, s->size, false);
 }
 
-void makePortalableButton(sguiButton_struct* b)
+void makePortalableButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -240,7 +254,7 @@ void makePortalableButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRange(editorRoom.blockArray, changePortalableBlockDirection, editorRoom.blockFaceList, s->origin, s->size, true);
 }
 
-void makeUnportalablePlanarButton(sguiButton_struct* b)
+void makeUnportalablePlanarButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -248,7 +262,7 @@ void makeUnportalablePlanarButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRangeDirection(editorRoom.blockArray, changePortalableBlockDirection, editorRoom.blockFaceList, s->origin, s->size, s->firstFace->direction, false);
 }
 
-void makePortalablePlanarButton(sguiButton_struct* b)
+void makePortalablePlanarButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -256,7 +270,7 @@ void makePortalablePlanarButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRangeDirection(editorRoom.blockArray, changePortalableBlockDirection, editorRoom.blockFaceList, s->origin, s->size, s->firstFace->direction, true);
 }
 
-void makeUnsludgePlanarButton(sguiButton_struct* b)
+void makeUnsludgePlanarButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -264,7 +278,7 @@ void makeUnsludgePlanarButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRangeDirection(editorRoom.blockArray, changeSludgeBlock, editorRoom.blockFaceList, s->origin, s->size, s->firstFace->direction, true);
 }
 
-void makeSludgePlanarButton(sguiButton_struct* b)
+void makeSludgePlanarButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(!s->active || !s->firstFace || !s->secondFace || s->entity)return;
@@ -272,13 +286,13 @@ void makeSludgePlanarButton(sguiButton_struct* b)
 	changeAttributeBlockArrayRangeDirection(editorRoom.blockArray, changeSludgeBlock, editorRoom.blockFaceList, s->origin, s->size, s->firstFace->direction, false);
 }
 
-void cancelTargetButton(sguiButton_struct* b)
+void cancelTargetButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	cleanUpContextButtons();
 	editorSelection.selectingTarget=false;
 }
 
-void removeTargetButton(sguiButton_struct* b)
+void removeTargetButton(__attribute__((unused)) sguiButton_struct* b)
 {
 	selection_struct* s=&editorSelection;
 	if(s->entity)s->entity->target=NULL;

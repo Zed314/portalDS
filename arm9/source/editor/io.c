@@ -1,7 +1,29 @@
+/**
+ * @file io.c
+ * @brief Reading and writing level files.
+ *
+ * Implements @ref io.h. @ref writeMapEditor is the expensive half of the
+ * editor: it compresses the block array, runs
+ * @ref generateOptimizedRectangles, packs the lightmap atlas, bakes the
+ * lighting and writes all of it out with a header of section offsets.
+ *
+ * @par Keep this in step with room.c
+ * writeEntity() here and readEntity() in game/room.c are two halves of the same
+ * format. It is positional with no self-description, so adding a field to one
+ * without the other silently corrupts every entity after it. readEntityEditor()
+ * in this file is the editor's own reader, which additionally restores the
+ * entity's editing state.
+ *
+ * adaptVector() converts between the game's world coordinates and the editor's
+ * per-face frames, and is applied on both the write and read paths - which is
+ * why an asymmetry there is so hard to spot.
+ */
+
 #include "editor/editor_main.h"
 
-mapHeader_struct blankHeader=(mapHeader_struct){0,0,0,0,0};
+static mapHeader_struct blankHeader; //static storage: all fields zero
 
+//extern entity_struct entity[NUMENTITIES];
 //WRITING STUFF
 
 void writeTranslatedVect(vect3D v, FILE* f)
@@ -16,11 +38,11 @@ void writeRectangle(rectangle_struct* rec, FILE* f)
 	writeVect(rec->position,f);
 	writeVect(rec->size,f);
 	writeVect(rec->normal,f);
-	
+
 	fwrite(&rec->portalable,sizeof(bool),1,f);
 
 	u16 mid=getMaterialID(rec->material);
-	
+
 	fwrite(&mid,sizeof(u16),1,f);
 }
 
@@ -179,7 +201,7 @@ bool writeEntity(entity_struct* e, FILE* f)
 	}
 }
 
-extern entity_struct entity[NUMENTITIES];
+
 
 void writeEntities(FILE* f)
 {
@@ -206,7 +228,7 @@ u16* compressBlockArray(BLOCK_TYPE* ba, u32* size)
 	//TEMP TEMP TEMP TEST
 	// int i; for(i=0;i<64*64*64;i++&&ba++)testARRAY[i]=(u8)((*(ba++))>>8);
 	// *size=compressRLE(&dst, (u8*)testARRAY, sizeof(u8)*ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ);
-	
+
 	// *size=compressRLE(&dst, (u8*)ba, sizeof(BLOCK_TYPE)*ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ);
 	*size=compressRLE(&dst, ba, ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ);
 	return dst;
@@ -270,9 +292,9 @@ void writeMapEditor(editorRoom_struct* er, const char* str)
 	generateVertexLighting(&r, ld);
 
 	h.dataPosition=ftell(f);
-		u8* compressed=compressBlockArray(er->blockArray, &h.dataSize);	// decompress(compressed, er->blockArray, RLE);
+		u16* compressed=compressBlockArray(er->blockArray, &h.dataSize);	// decompress(compressed, er->blockArray, RLE);
 		if(!compressed){return;} //TEMP : clean up first !
-		NOGBA("DATASIZE %d",h.dataSize);
+		NOGBA("DATASIZE %lu",h.dataSize);
 		fwrite(compressed,sizeof(u8),h.dataSize*2,f);
 		free(compressed);
 
@@ -312,8 +334,9 @@ void readEntityEditor(FILE* f)
 
 	u8 type; vect3D v;
 
-	fread(&type,sizeof(u8),1,f);
+	if(fread(&type,sizeof(u8),1,f)!=1)return;
 	entity_struct* e=createEntity(vect(0,0,0), type, true);
+	if(!e)return; //pool full; readEntitiesEditor caps the count so this is belt and braces
 	readVect(&e->position, f);
 	fread(&e->direction, sizeof(u8), 1, f);
 
@@ -428,9 +451,12 @@ void readEntityEditor(FILE* f)
 
 void readEntitiesEditor(FILE* f)
 {
-	int i; u16 cnt;
+	int i; u16 cnt=0;
 	removeEntities();
-	fread(&cnt,sizeof(u16),1,f);
+	if(fread(&cnt,sizeof(u16),1,f)!=1)return;
+	// The entity pool is NUMENTITIES deep and createEntity hands back NULL once
+	// it is full; cap here so that never happens, as game/room.c does.
+	if(cnt>NUMENTITIES)cnt=NUMENTITIES;
 	for(i=0;i<cnt;i++)
 	{
 		readEntityEditor(f);
@@ -447,12 +473,19 @@ bool loadMapEditor(editorRoom_struct* er, const char* str)
 	mapHeader_struct h;
 	readHeader(&h, f);
 
+	// dataSize comes straight out of the file. The worst case the compressor
+	// can produce is one control word per element plus the four word header,
+	// so anything past that is a lie; and however big it claims to be, only
+	// what the file actually holds is read, and only that much is decompressed.
+	const u32 maxData=ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ*2+8;
+	if(h.dataSize>maxData){fclose(f);return false;}
+
 	fseek(f, h.dataPosition, SEEK_SET);
 		u16* compressed=malloc(sizeof(u16)*h.dataSize);
-		if(!compressed){return false;} //TEMP : clean up first !
-		fread(compressed, sizeof(u16), h.dataSize, f);
-		// decompress(compressed, er->blockArray, RLE); // decompressRLE(er->blockArray, compressed, ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ);		
-		decompressRLE(er->blockArray, compressed, ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ);		
+		if(!compressed){fclose(f);return false;}
+		const size_t got=fread(compressed, sizeof(u16), h.dataSize, f);
+		// decompress(compressed, er->blockArray, RLE);
+		decompressRLE(er->blockArray, compressed, ROOMARRAYSIZEX*ROOMARRAYSIZEY*ROOMARRAYSIZEZ, got);
 		free(compressed);
 
 	fseek(f, h.entityPosition, SEEK_SET);

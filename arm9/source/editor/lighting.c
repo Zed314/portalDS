@@ -1,3 +1,16 @@
+/**
+ * @file lighting.c
+ * @brief Allocating and releasing baked lighting data.
+ *
+ * Implements @ref lighting.h. Only the storage: @ref initLightDataLM and
+ * @ref initLightDataVL size the buffers for whichever scheme a room uses, and
+ * @ref freeLightData releases whichever one is live.
+ *
+ * The actual bakes are elsewhere - @ref generateLightmaps and
+ * @ref generateVertexLighting in game/room.c - because they need the room
+ * geometry that this file knows nothing about.
+ */
+
 #include "editor/editor_main.h"
 
 #define A5I3
@@ -98,7 +111,7 @@ void fillBuffer(u8* buffer, vect2D p, vect2D s, u8* v, bool rot, int w)
 	// u8 vt=(rand()%31)<<3;
 	if(!rot)
 	{
-		NOGBA("bounds %d %d",p.x+s.x,p.y+s.y);
+		NOGBA("bounds %ld %ld",p.x+s.x,p.y+s.y);
 		for(i=0;i<s.x;i++)
 		{
 			int j;
@@ -109,7 +122,7 @@ void fillBuffer(u8* buffer, vect2D p, vect2D s, u8* v, bool rot, int w)
 			}
 		}
 	}else{
-		NOGBA("bounds %d %d",p.x+s.y,p.y+s.x);
+		NOGBA("bounds %ld %ld",p.x+s.y,p.y+s.x);
 		for(i=0;i<s.x;i++)
 		{
 			int j;
@@ -130,7 +143,7 @@ void generateLightmap(rectangle_struct* rec, room_struct* r, lightMapData_struct
 		u8* data=malloc(x*y);
 		if(!data)return;
 		vect3D p=vect(rec->position.x*TILESIZE*2-TILESIZE,rec->position.y*HEIGHTUNIT,rec->position.z*TILESIZE*2-TILESIZE);
-		NOGBA("p : %d, %d, %d",p.x,p.y,p.z);
+		NOGBA("p : %ld, %ld, %ld",p.x,p.y,p.z);
 		int i;
 		vect3D u=getUnitVect(rec);
 		for(i=0;i<x;i++)
@@ -187,7 +200,7 @@ void generateLightmaps(room_struct* r, lightingData_struct* ld)
 		generateLightmap(&lc->data, r, &ld->data.lightMap, ld->data.lightMap.buffer, &ld->data.lightMap.coords[i++]);
 		lc=lc->next;
 	}
-		
+
 	freeRectangle2DList(&rl);
 	NOGBA("freed.");
 }

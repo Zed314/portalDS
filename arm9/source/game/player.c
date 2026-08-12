@@ -1,26 +1,56 @@
+/**
+ * @file player.c
+ * @brief The player: movement, the portal gun and the gravity gun.
+ *
+ * Implements @ref player.h.
+ *
+ * @par The gun
+ * @ref shootPlayerGun casts a ray from the camera and dispatches on its
+ * @p mode mask and on what it hit: press a timed button, grab a cube, or place
+ * a portal. Portal placement is the fussy one - the surface must be portalable
+ * and not behind an emancipation grid, and @ref isPortalOnWall then has to fit
+ * the whole portal onto it.
+ *
+ * @par The gravity gun
+ * There is no held-object constraint. While @ref gravityGunTarget is set,
+ * @ref updatePlayer simply overwrites that box's velocity each frame with a
+ * vector pointing at a spot in front of the camera, via @ref setVelocity. The
+ * box therefore chases the carry point rather than being attached to it, which
+ * is what makes a carried cube swing and bump into things convincingly.
+ *
+ * @par Drawing
+ * @ref renderGun draws the gun in first person, and @ref drawPlayer draws the
+ * body - which you only ever see through a portal.
+ */
+
 #include "game/game_main.h"
 
+
 player_struct player;
-md2Model_struct gun, playerModel;
-mtlImg_struct* crossHair;
-struct gl_texture_t *bottomScreen;
+static md2Model_struct gun, playerModel;
+//static mtlImg_struct* crossHair; // Not used currently
+//static struct gl_texture_t *bottomScreen;
 struct gl_texture_t *bottomButton;
 
-u8* bottomScreenIMG;
-u16* bottomScreenPAL;
+static u8* bottomScreenIMG;
+static u16* bottomScreenPAL;
 
 touchPosition touchCurrent, touchOld;
 
-SFX_struct *gunSFX1, *gunSFX2;
+/** Sound effects for portals shots. */
+SFX_struct *gunSFX1, *gunSFX2, *gunRefusedSFX;
+/** Sound effect when entering portal */
 SFX_struct *portalEnterSFX[2];
+/** Sound effect when leaving portal */
 SFX_struct *portalExitSFX[2];
 
-bool oldCurrentPortalColor;
 bool currentPortalColor; //true=orange
 
 s16 gravityGunTarget;
 
-int subBG;
+static int subBG;
+
+void drawBottomButton(bool color);
 
 bool isPortalInRectangle(room_struct* r, rectangle_struct* rec, portal_struct* p, vect3D* o)
 {
@@ -64,13 +94,37 @@ void collidePlayer(player_struct* p, room_struct* r)
 	collideObjectRoom(p->object,r);
 }
 
+/** Last intensity written to the fog registers; -1 forces the next setFog
+ *  through, which initPlayer relies on after the GL state has been rebuilt. */
+static s16 fogIntensity=-1;
+
 void setFog(u8 intensity)
 {
+	//called every frame with (127-life)/2, which is 0 the whole time the
+	//player is unhurt - skip the 32 density register writes when nothing
+	//changed.
+	if(intensity==fogIntensity)return;
+	fogIntensity=intensity;
 	glEnable(GL_FOG);
 	glFogShift(2);
 	glFogColor(31,0,0,31);
 	int i; for(i=0;i<32;i++)glFogDensity(i,intensity);
 	glFogOffset(0x6500);
+}
+
+//defined further down, next to renderGun which is the rest of its story
+static void clearMuzzleParticles(void);
+
+/**
+ * Tints the gun and the player body to the active portal colour. Palette
+ * writes remap VRAM bank E, so this runs only when the colour actually
+ * changes: at init and on a bottom-button toggle, never per frame.
+ */
+static void applyGunTint(player_struct* p)
+{
+	const u16 color=currentPortalColor?(RGB15(31,16,0)):(RGB15(0,12,31));
+	editPalette((u16*)p->modelInstance.model->texture->pal,0,color); //TEMP?
+	editPalette((u16*)p->playerModelInstance.model->texture->pal,0,color); //TEMP?
 }
 
 void initPlayer(player_struct* p)
@@ -85,6 +139,8 @@ void initPlayer(player_struct* p)
 	touchOld=touchCurrent;
 	p->walkCnt=0;
 	p->life=127;
+	p->refusedCNT=0;
+	clearMuzzleParticles();
 	p->tempAngle=vect(0,0,0);
 	loadMd2Model("models/portalgun.md2","portalgun.pcx",&gun);
 	loadMd2Model("models/ratman.md2","ratman.pcx",&playerModel);
@@ -101,8 +157,11 @@ void initPlayer(player_struct* p)
 
 	#ifndef DEBUG_GAME
 		subBG=bgInitSub(3, BgType_Bmp8, BgSize_B8_256x256, 0, 0);
-		dmaCopy(bottomScreenIMG, bgGetGfxPtr(subBG), 256*192);
-		dmaCopy(bottomScreenPAL, BG_PALETTE_SUB, 256*2);
+		//dmaCopy(bottomScreenIMG, bgGetGfxPtr(subBG), 256*192);
+		//dmaCopy(bottomScreenPAL, BG_PALETTE_SUB, 256*2);
+
+		memcpy( bgGetGfxPtr(subBG),bottomScreenIMG, 256*192);
+		memcpy( BG_PALETTE_SUB,bottomScreenPAL, 256*2);
 	#endif
 
 	//TEMP INIT VALUES
@@ -111,6 +170,7 @@ void initPlayer(player_struct* p)
 	//SFX
 	gunSFX1=createSFX("portalgun_orange.raw", SoundFormat_16Bit);
 	gunSFX2=createSFX("portalgun_blue.raw", SoundFormat_16Bit);
+	gunRefusedSFX=createSFX("portalgun_refused.raw", SoundFormat_16Bit);
 
 	portalEnterSFX[0]=createSFX("portal_enter1.raw", SoundFormat_16Bit);
 	portalEnterSFX[1]=createSFX("portal_enter2.raw", SoundFormat_16Bit);
@@ -122,48 +182,49 @@ void initPlayer(player_struct* p)
 	gravityGunTarget=-1;
 
 	//TEST TEMP
+	fogIntensity=-1; //the GL context was rebuilt; write the registers again
 	setFog(0);
 
 	currentPortalColor=true;
-	oldCurrentPortalColor=currentPortalColor;
 	drawBottomButton(currentPortalColor);
+	applyGunTint(p);
 }
 
 void drawBottomButton(bool color)
 {
+	if(!bottomButton || !bottomButton->texels)return;
+
 	u16* d=bgGetGfxPtr(subBG);
 	u8* s=bottomButton->texels;
 	if(!color)s+=32*128;
-	int j; for(j=0;j<32;j++)dmaCopy(&s[j*128],&d[32+(j+4)*128],128);
+	int j; 
+    for(j=0;j<32;j++)
+        //dmaCopy(&s[j*128],&d[32+(j+4)*128],128);
+        memcpy(&d[32+(j+4)*128],&s[j*128],128);
 
 	if(color)BG_PALETTE_SUB[0]=RGB15(28,17,3);
 	else BG_PALETTE_SUB[0]=RGB15(6,18,22);
 }
-
+/*
 bool updateBottomScreen(touchPosition* tp)
 {
 	if(!tp)return false;
 
 	bool r=false;
 
-	if(tp->px>=64 && tp->py>=4 && tp->px<=64+128 && tp->py<=4+32)
-	{
-		r=true;
-		if(keysUp()&KEY_TOUCH){currentPortalColor^=1;}
-		touchCnt=0;
-	}		
+
 
 	return r;
-}
+}*/
 
 void drawPlayer(player_struct* p)
 {
 	if(!p)p=&player;
-	
+
 	glPushMatrix();
 		u32 params=POLY_ALPHA(31)|POLY_CULL_FRONT|POLY_ID(2)|POLY_TOON_HIGHLIGHT|POLY_FOG;
 		setupObjectLighting(NULL, p->object->position, &params);
-		
+
 		camera_struct* c=getPlayerCamera();
 		glTranslatef32(c->position.x,c->position.y-600,c->position.z);
 		int32 m[9];transposeMatrix33(c->transformationMatrix,m);
@@ -182,22 +243,22 @@ void drawCrosshair(void)
 	return;
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(0, 255, 191, 0, -1, 1);	
+	glOrtho(0, 255, 191, 0, -1, 1);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	
+
 	// applyMTL(crossHair);
-	
+
 	GFX_COLOR=RGB15(31,31,31);
-	
+
 	glPushMatrix();
-	
+
 	glTranslate3f32(inttof32(128),inttof32(96),0);
 	glScalef32(inttof32(16),inttof32(16),inttof32(16));
-	
+
 	glPolyFmt(POLY_ALPHA(31) | POLY_CULL_NONE);
 	glBegin(GL_QUADS);
-	
+
 		GFX_TEX_COORD = TEXTURE_PACK(32*16, 0);
 		GFX_VERTEX10 = NORMAL_PACK(-32,-32,0);
 		GFX_TEX_COORD = TEXTURE_PACK(32*16, 32*16);
@@ -209,7 +270,7 @@ void drawCrosshair(void)
 
 	glEnd();
 	glPolyFmt(POLY_ALPHA(31) | POLY_CULL_BACK);
-	
+
 	glPopMatrix(1);
 }
 
@@ -217,36 +278,194 @@ s16 depth=-92;
 s16 height=-63;
 s16 X=-46;
 
+/**
+ * @brief Marks the gun as having been fired without placing anything.
+ *
+ * Restarting rather than accumulating, so holding the trigger against a wall
+ * that takes no portals keeps shaking instead of winding itself up.
+ */
+static void refuseShot(player_struct* p)
+{
+	if(!p)return;
+
+	//Restarting the sound as well as the shake. playSFX takes the next free
+	//hardware channel, so retriggering overlaps rather than cutting off, which
+	//is the right way round for something this short and this quiet.
+	p->refusedCNT=GUNREFUSEDFRAMES;
+	playSFX(gunRefusedSFX);
+}
+
+/**
+ * @brief Yaw offset of the refused-shot shake, as a binary angle.
+ *
+ * A sine swung @ref GUNREFUSEDSWINGS times over @ref GUNREFUSEDFRAMES frames,
+ * with the amplitude falling linearly to nothing, so the gun ends where it
+ * started however the count runs out. Zero once the count reaches zero, which
+ * is what makes this safe to call every frame.
+ */
+static s32 refusedShakeAngle(s16 cnt)
+{
+	if(cnt<=0)return 0;
+	if(cnt>GUNREFUSEDFRAMES)cnt=GUNREFUSEDFRAMES;
+
+	//A full turn is 32768, so this wraps of its own accord once per swing.
+	const s32 phase=((GUNREFUSEDFRAMES-cnt)*GUNREFUSEDSWINGS*32768)/GUNREFUSEDFRAMES;
+	const s32 amplitude=(GUNREFUSEDANGLE*cnt)/GUNREFUSEDFRAMES;
+
+	return (sinLerp((s16)phase)*amplitude)>>12;
+}
+
+/* --- muzzle sparks -------------------------------------------------------- */
+
+/*
+ * A handful of sparks at the barrel, in whichever colour is about to be fired.
+ *
+ * Deliberately not the system in game/particles.c. That one is world space and
+ * was cut for performance, and the reason it was cut still holds: the room is
+ * drawn up to three times a frame for the portal views, so anything living in
+ * it is paid for three times over. These live in view space beside the gun,
+ * there are never more than MUZZLEPARTICLES of them, and they cost one quad
+ * each wherever the gun itself is already being drawn.
+ *
+ * They sit in view space rather than in the gun's own rotated frame, so the
+ * three offsets below read as plain right, up and forward and can be nudged
+ * without working out where the model's barrel ended up. If the sparks appear
+ * in the wrong place on screen, MUZZLEX/Y/Z are the dials.
+ */
+#define MUZZLEPARTICLES (12)  /**< Pool size; two shots in quick succession overlap. */
+#define MUZZLEBURST (6)       /**< How many a single shot emits. */
+#define MUZZLELIFE (14)       /**< Frames each one lasts. */
+
+#define MUZZLEX (0)           /**< Barrel offset from the gun's own position, rightwards. */
+#define MUZZLEY (10)          /**< ...upwards. */
+#define MUZZLEZ (-52)         /**< ...forwards, into the screen. */
+
+#define MUZZLESPREAD (10)     /**< Scatter of the initial position and velocity. */
+#define MUZZLEDRIFT (5)       /**< Forward drift per frame. */
+#define MUZZLESIZE (8)        /**< Half extent of one spark's quad, in the same units as the offsets above - the gun's own placement constants (height, depth, X) are tens of these, so a spark is a small fraction of the gun. */
+
+typedef struct
+{
+	vect3D position, speed;
+	u16 color;
+	s16 life;
+}muzzleParticle_struct;
+
+static muzzleParticle_struct muzzleParticles[MUZZLEPARTICLES];
+
+static void clearMuzzleParticles(void)
+{
+	int i;for(i=0;i<MUZZLEPARTICLES;i++)muzzleParticles[i].life=0;
+}
+
+/**
+ * @brief Emits a burst at the barrel. Silently does less if the pool is busy.
+ *
+ * Called only where a portal has actually been placed, so the sparks mean a
+ * portal appeared rather than merely that the trigger was pulled.
+ */
+static void spawnMuzzleParticles(u16 color)
+{
+	int i, spawned=0;
+	for(i=0;i<MUZZLEPARTICLES && spawned<MUZZLEBURST;i++)
+	{
+		muzzleParticle_struct* m=&muzzleParticles[i];
+		if(m->life>0)continue;
+
+		m->position=vect(MUZZLEX+(rand()%MUZZLESPREAD)-MUZZLESPREAD/2,
+		                 MUZZLEY+(rand()%MUZZLESPREAD)-MUZZLESPREAD/2,
+		                 MUZZLEZ);
+		m->speed=vect((rand()%MUZZLESPREAD)-MUZZLESPREAD/2,
+		              (rand()%MUZZLESPREAD)-MUZZLESPREAD/2,
+		              -MUZZLEDRIFT);
+		m->color=color;
+		m->life=MUZZLELIFE;
+		spawned++;
+	}
+}
+
+static void updateMuzzleParticles(void)
+{
+	int i;
+	for(i=0;i<MUZZLEPARTICLES;i++)
+	{
+		muzzleParticle_struct* m=&muzzleParticles[i];
+		if(m->life<=0)continue;
+
+		m->position=addVect(m->position,m->speed);
+		m->life--;
+	}
+}
+
+/**
+ * @brief Draws the live sparks.
+ *
+ * Call with the matrix at the gun's position and the view's axes, before any
+ * of the gun's own rotations - that is what makes the offsets above readable.
+ */
+static void drawMuzzleParticles(void)
+{
+	int i;
+	unbindMtl(); //untextured, and the gun's own texture is bound around this
+
+	for(i=0;i<MUZZLEPARTICLES;i++)
+	{
+		const muzzleParticle_struct* m=&muzzleParticles[i];
+		if(m->life<=0)continue;
+
+		//POLY_ALPHA(0) is wireframe on this hardware, so never fade to nothing
+		const u32 alpha=(31*m->life)/MUZZLELIFE;
+		glPolyFmt(POLY_ALPHA(alpha?alpha:1) | POLY_CULL_NONE | POLY_ID(50));
+		GFX_COLOR=m->color;
+
+		glPushMatrix();
+			glTranslate3f32(m->position.x,m->position.y,m->position.z);
+			glBegin(GL_QUADS);
+				glVertex3v16(-MUZZLESIZE, MUZZLESIZE,0);
+				glVertex3v16( MUZZLESIZE, MUZZLESIZE,0);
+				glVertex3v16( MUZZLESIZE,-MUZZLESIZE,0);
+				glVertex3v16(-MUZZLESIZE,-MUZZLESIZE,0);
+			glEnd();
+		glPopMatrix(1);
+	}
+}
+
 void renderGun(player_struct* p)
 {
 	if(!p)p=&player;
 	glPushMatrix();
 		u32 params=POLY_ALPHA(31) | POLY_CULL_FRONT | POLY_ID(1) | POLY_TOON_HIGHLIGHT | POLY_FOG;
 		setupObjectLighting(NULL, p->object->position, &params);
-		
+
 		glTranslate3f32((sinLerp(p->walkCnt>>1)>>11),(sinLerp(p->walkCnt)>>11),0);
 		glTranslate3f32(0,height,depth);
+
+		//Before the rotations, so the sparks stay in view space; see the note
+		//on drawMuzzleParticles.
+		drawMuzzleParticles();
+
 		glRotateYi(-(1<<13));
 		glRotateYi(-p->tempAngle.y);
 		glRotateZi(p->tempAngle.x/2);
+		//The firing animation plays either way, so this is the only thing that
+		//tells a shot which placed a portal from one which did not.
+		glRotateYi(refusedShakeAngle(p->refusedCNT));
 		glMaterialf(GL_AMBIENT, RGB15(31,31,31));
 		glTranslate3f32(0,0,X);
 		glScalef32(inttof32(1)>>4,inttof32(1)>>4,inttof32(1)>>4);
-		room_struct* r=getPlayer()->currentRoom;
 		// vect3D v=reverseConvertVect(vectDifference(p->object->position,convertVect(vect(r->position.x,0,r->position.y))));
 		// NOGBA("%d %d %d",v.x,v.y,v.z);
 		renderModelFrameInterp(p->modelInstance.currentFrame, p->modelInstance.nextFrame, p->modelInstance.interpCounter, &gun, params, false, p->modelInstance.palette, RGB15(31,31,31));
 	glPopMatrix(1);
 }
 
-void shootPlayerGun(player_struct* p, bool R, u8 mode)
+bool shootPlayerGun(player_struct* p, bool R, u8 mode)
 {
 	if(!p)p=&player;
-	if(!p->currentRoom)return;
+	//nothing to shoot at, but the gun still went off
+	if(!p->currentRoom)return true;
 	camera_struct* c=getPlayerCamera();
-	
-	p->currentPortal=R;
-	
+
 	int32 k=inttof32(300);
 	vect3D u=getUnitVector(NULL);
 	vect3D l=vectDifference(p->object->position,convertVect(vect(p->currentRoom->position.x,0,p->currentRoom->position.y)));
@@ -270,82 +489,134 @@ void shootPlayerGun(player_struct* p, bool R, u8 mode)
 			// ip.z+=TILESIZE*2;
 			ip.x+=TILESIZE;
 			ip.z+=TILESIZE;
-			
+
 			vect3D pos=addVect(convertVect(vect(p->currentRoom->position.x,0,p->currentRoom->position.y)),ip);
-			NOGBA("SHOT WALL ! GOOD GOING %d %d %d",r->normal.z,r->normal.x, r->AARid);
-			
-			// particleExplosion(pos,64,R?(RGB15(31,31,0)):(RGB15(0,31,31)));
-			
+			NOGBA("SHOT WALL ! GOOD GOING %ld %ld %d",r->normal.z,r->normal.x, r->AARid);
+
 			// r->hide^=1;
 
-			vect3D v=vectDifference(pos,p->object->position);
+			//vect3D v=vectDifference(pos,p->object->position);
 
 			vect3D plane0=vect(c->transformationMatrix[0],c->transformationMatrix[3],c->transformationMatrix[6]);
 			plane0=normalize(vectDifference(plane0,vectMult(r->normal,dotProduct(r->normal,plane0))));
-			
-			portal_struct* por=R?(&portal1):(&portal2);
-			
+
+			portal_struct* por=portalForColor(R);
+			portal_struct* other_por=portalForColor(!R);
+
 			vect3D oldp=por->position;vect3D oldn=por->normal;vect3D oldp0=por->plane[0];
 			movePortal(por, pos, vectMultInt(r->normal,-1), plane0, false);
-			
+
 			isPortalOnWall(p->currentRoom,por,true);
-			
-			if(isPortalOnWall(p->currentRoom,por,false))
+
+			if(isPortalOnWall(p->currentRoom,por,false)&&portalToPortalIntersection(por,other_por))
 			{
+                NOGBA("Portal primary branch!\n");
+
 				pos=por->position;
-				movePortal(por, oldp, oldn, oldp0, false); //terribly inelegant, please forgive me	
+				movePortal(por, oldp, oldn, oldp0, false); //terribly inelegant, please forgive me
 				ejectPortalOBBs(por);
-				
+
 				movePortal(por, pos, vectMultInt(r->normal,-1), plane0, true);
+
+				//Sparks only once a portal is really there, and in that
+				//portal's own colour. A refused shot gets the shake and the
+				//error sound instead - three cues saying "no" is one too many,
+				//and the gun visibly discharging nothing is the clearest of
+				//them.
+				spawnMuzzleParticles(por->color);
+				//and a world-space burst at the wall itself, sprayed out
+				//along the portal normal - same rule, only on success.
+				particleExplosionDir(pos,vectDivInt(r->normal,-128),12,por->color);
 			}else{
+                NOGBA("Portal secondary branch!\n");
+                NOGBA("portal intersect is %d\n", portalToPortalIntersection(por,other_por));
 				movePortal(por, oldp, oldn, oldp0, false);
+				//the surface takes portals, but this one will not fit on it -
+				//it hangs off an edge, or the other portal is already there
+				refuseShot(p);
+				return false;
 			}
 		}
+        else if(mode&4)
+        {
+            //no portalable surface under the shot: bare wall, out of range, or
+            //an emancipation grid in the way
+            NOGBA("TRIED TO PLACE PORTAL BUT FAILED\n");
+            refuseShot(p);
+            return false;
+        }
 	}
+
+	return true;
 }
 
 extern OBB_struct objects[NUMOBJECTS];
 bool idle;
 
+bool isInsideButton(int x, int y){
+
+    return x>=64 && y>=4 && x<=64+128 && y<=4+32;
+}
+
 void playerControls(player_struct* p)
 {
 	if(!p)p=&player;
-	
+
 	if(p->life<=0)changeState(&gameState);
-	
+
+	//scanKeys();
 	touchRead(&touchCurrent);
-	
+
 	// if(keysDown() & KEY_TOUCH)
 	// {
 	// 	touchOld=touchCurrent;
 	// 	if(!touchCnt)touchCnt=16;
 	// 	else {touchCnt=0; p->object->speed=addVect(p->object->speed,vectMult(normGravityVector,-(inttof32(1)>>5)));}
 	// }
-	
-	if(!(((keysDown()&KEY_TOUCH) && updateBottomScreen(&touchCurrent)) || updateBottomScreen(&touchOld)) && (keysHeld() & KEY_TOUCH))
-	{		
-		int16 dx = touchCurrent.px - touchOld.px;
-		int16 dy = touchCurrent.py - touchOld.py;
-		
-		vect3D angle=vect(0,0,0);
-		
-		if (dx<20 && dx>-20 && dy<20 && dy>-20)
-		{
-			// if(dx>-2&&dx<2)dx=0;
-			// if(dy>-2&&dy<2)dy=0;
 
-			angle.x-=degreesToAngle(dy);
-			angle.y-=degreesToAngle(dx);
-		}
-		p->tempAngle=addVect(p->tempAngle,angle);
+    uint16_t keys_up=keysUp();
+    uint16_t keys_held=keysHeld();
 
-		int32 tempMatrix[9];
-		int32* m=getPlayerCamera()->transformationMatrix;
-		memcpy(tempMatrix,m,9*sizeof(int32));
-		rotateCamera(NULL, angle);
-		if(m[4]<0 && m[4]<tempMatrix[4])memcpy(m,tempMatrix,9*sizeof(int32));
-	}
-	
+    if((keys_up & KEY_TOUCH ) && isInsideButton(touchOld.px, touchOld.py))
+    {
+        currentPortalColor^=1;
+        drawBottomButton(currentPortalColor);
+        applyGunTint(p);
+        touchCnt=0;
+
+    }
+
+    if (keys_held & KEY_TOUCH ){
+	    int16 dx = touchCurrent.px - touchOld.px;
+	    int16 dy = touchCurrent.py - touchOld.py;
+
+	    vect3D angle=vect(0,0,0);
+
+	    if (dx<50 && dx>-50 && dy<50 && dy>-50)
+	    {
+		    // if(dx>-2&&dx<2)dx=0;
+		    // if(dy>-2&&dy<2)dy=0;
+
+		    //A drag turns the camera a degree per pixel, scaled by the
+		    //sensitivity setting. The delta is bounded to 50 by the test above
+		    //and the setting to 200 percent, so the multiply stays small.
+		    const int32 pitch=(degreesToAngle((int32)dy)*settings.lookSensitivity)/100;
+		    const int32 yaw=(degreesToAngle((int32)dx)*settings.lookSensitivity)/100;
+
+		    if(settings.invertLookY)angle.x+=pitch;
+		    else angle.x-=pitch;
+		    angle.y-=yaw;
+	    }
+	    p->tempAngle=addVect(p->tempAngle,angle);
+
+	    int32 tempMatrix[9];
+	    int32* m=getPlayerCamera()->transformationMatrix;
+	    memcpy(tempMatrix,m,9*sizeof(int32));
+	    rotateCamera(NULL, angle);
+	    if(m[4]<0 && m[4]<tempMatrix[4])memcpy(m,tempMatrix,9*sizeof(int32));
+   
+       
+    }
 	// if(keysHeld()&(KEY_A))rotateCamera(NULL, vect(0,0,-(1<<8)));
 	// if(keysHeld()&(KEY_Y))rotateCamera(NULL, vect(0,0,1<<8));
 	// if(p->object->contact)
@@ -362,7 +633,7 @@ void playerControls(player_struct* p)
 	// 	if((keysHeld()&(KEY_DOWN))/*||(keysHeld()&(KEY_B))*/)moveCamera(NULL, vect(0,0,PLAYERAIRSPEED));
 	// 	if((keysHeld()&(KEY_UP))/*||(keysHeld()&(KEY_X))*/)moveCamera(NULL, vect(0,0,-(PLAYERAIRSPEED)));
 	// }
-	
+
 	// if(keysDown()&(KEY_START))p->object->speed=addVect(p->object->speed,vectMult(normGravityVector,-(inttof32(1)>>4)));
 	// if(keysDown()&(KEY_START))changeState(&menuState);
 	// if(keysDown()&(KEY_START))doPause(NULL);
@@ -386,7 +657,7 @@ void playerControls(player_struct* p)
 	// // camera_struct* c=getPlayerCamera();
 	// // if(keysDown()&(KEY_SELECT))changeGravity(vect(-normGravityVector.z,normGravityVector.x,normGravityVector.y),16);
 	// if(keysDown()&(KEY_SELECT))p->life=-5;
-	
+
 	touchOld=touchCurrent;
 }
 
@@ -410,13 +681,10 @@ void updatePlayer(player_struct* p)
 
 	if(p->inPortal && !p->oldInPortal)playSFX(portalEnterSFX[rand()%2]);
 	else if(!p->inPortal && p->oldInPortal)playSFX(portalExitSFX[rand()%2]);
-	
-	editPalette((u16*)p->modelInstance.model->texture->pal,0,p->currentPortal?(RGB15(31,16,0)):(RGB15(0,12,31))); //TEMP?
-	editPalette((u16*)p->playerModelInstance.model->texture->pal,0,p->currentPortal?(RGB15(31,16,0)):(RGB15(0,12,31))); //TEMP?
-	
+
 	collidePlayer(p,p->currentRoom);
 	if(!p->inPortal && collideAABBSludge(p->object->position, vect(PLAYERRADIUS,PLAYERRADIUS,PLAYERRADIUS)))p->life=-5;
-	
+
 	updateCamera(NULL);
 
 	//regeneration
@@ -424,17 +692,19 @@ void updatePlayer(player_struct* p)
 	if(p->life>127)p->life=127;
 
 	setFog((127-p->life)/2);
-	
+
 	p->tempAngle.x/=2;
 	p->tempAngle.y/=2;
-	
+
+	//renderGun is called more than once per frame, so the shake has to be
+	//wound down here rather than where it is drawn.
+	if(p->refusedCNT>0)p->refusedCNT--;
+	updateMuzzleParticles();
+
 	updateAnimation(&p->playerModelInstance);
-	
+
 	updateAnimation(&p->modelInstance);
 	updateAnimation(&p->modelInstance); //TEMP?
-
-	if(oldCurrentPortalColor!=currentPortalColor)drawBottomButton(currentPortalColor);
-	oldCurrentPortalColor=currentPortalColor;
 }
 
 void shootPlayer(player_struct* p, vect3D v, u8 damage)
@@ -450,6 +720,7 @@ void freePlayer(void)
 	freeMd2Model(&gun);
 	freeMd2Model(&playerModel);
 	free(bottomScreenIMG); free(bottomScreenPAL);
-	bottomScreenIMG=bottomScreenPAL=NULL;
+	bottomScreenIMG=NULL;
+	bottomScreenPAL=NULL;
 	if(bottomButton){freePCX(bottomButton);bottomButton=NULL;}
 }

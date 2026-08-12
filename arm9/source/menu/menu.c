@@ -1,36 +1,54 @@
+/**
+ * @file menu.c
+ * @brief The menu state: setup, frame loop and teardown.
+ *
+ * Implements @ref menu_ex.h. Sets up the video modes and the 3D engine, brings
+ * up the background scene and the first page, and configures the hardware
+ * lighting and toon shading the menu room is drawn with.
+ *
+ * Note that it calls @ref initD3D - the menu uses both screens for 3D, so the
+ * logo and the scene can occupy one each.
+ *
+ * The frame loop is short - update the scene, update the camera transition,
+ * draw - because the buttons handle themselves through @ref simplegui.h and the
+ * state switches happen in menupage.c.
+ */
+
 #include "menu/menu_main.h"
 
-u32 lightAngle=54912;
-cameraState_struct tempState={(vect3D){0,0,0}, (vect3D){0,0,0}};
-cameraTransition_struct testTransition;
-bool tempbool=false;
 
-mtlImg_struct* logoMain;
-mtlImg_struct* logoRotate;
-u32 logoAngle=0;
+
+#define MENU_LIGHTANGLE 54912
+
+cameraTransition_struct testTransition;
 u8 logoAlpha;
+
+
+
+static mtlImg_struct* logoMain;
+static mtlImg_struct* logoRotate;
 
 void initMenu(void)
 {
 	lcdMainOnTop();
 	videoSetMode(MODE_5_3D);
 	videoSetModeSub(MODE_5_2D);
-	
-	vramSetPrimaryBanks(VRAM_A_TEXTURE,VRAM_B_TEXTURE,VRAM_C_SUB_BG,VRAM_D_TEXTURE);	
-	
+
+	vramSetPrimaryBanks(VRAM_A_TEXTURE,VRAM_B_TEXTURE,VRAM_C_SUB_BG,VRAM_D_TEXTURE);
+
 	initD3D();
 
 	glInit();
-	
+
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_ANTIALIAS);
 	glEnable(GL_BLEND);
 	glEnable(GL_OUTLINE);
-	
+
 	glClearPolyID(63);
 	glClearDepth(0x7FFF);
 	glViewport(0,0,255,191);
-	
+
 	initVramBanks(2);
 	initTextures();
 
@@ -50,10 +68,10 @@ void initMenu(void)
 	glSetToonTableRange(16, 31, RGB15(24,24,24)); //TEMP?
 
 	applyCameraState(&menuCamera,&cameraStates[4]);
-	tempState=cameraStates[4];
+
 	testTransition=startCameraTransition(&cameraStates[1],&cameraStates[4],64);
 
-	setupMenuPage(startMenuPage, startMenuPageLength);
+	setupHomeMenuPage();
 
 	logoMain=createTexture("logo.pcx", "menu");
 	logoRotate=createTexture("rotate_logo.pcx", "menu");
@@ -67,15 +85,14 @@ void initMenu(void)
 	fadeIn();
 }
 
-touchPosition currentTouch;
-
 void drawLogo(void)
 {
+	static u32 logoAngle=0;
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
 	glOrthof32(inttof32(0), inttof32(255), inttof32(191), inttof32(0), -inttof32(1), inttof32(1));
-	
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
@@ -115,68 +132,57 @@ void drawLogo(void)
 
 void menuFrame(void)
 {
+	touchPosition currentTouch;
 	if(!d3dScreen)initProjectionMatrix(&menuCamera, 70*90, inttof32(4)/3, inttof32(2), inttof32(1000));
 	else initProjectionMatrixBottom(&menuCamera, 70*90, inttof32(4)/3, inttof32(2), inttof32(1000));
 
 	projectCamera(&menuCamera);
 	glLoadIdentity();
 
-	glLight(0, RGB15(31,31,31), cosLerp(lightAngle)>>3, 0, sinLerp(lightAngle)>>3);
+	glLight(0, RGB15(31,31,31), cosLerp(MENU_LIGHTANGLE)>>3, 0, sinLerp(MENU_LIGHTANGLE)>>3);
 
 	GFX_CLEAR_COLOR=RGB15(0,0,0)|(31<<16);
 
 	scanKeys();
 	touchRead(&currentTouch);
 
-	if((keysHeld() & KEY_R) && (keysHeld() & KEY_L))changeState(&menuState);
-
-	if(keysHeld() & KEY_R)tempState.position=addVect(tempState.position,vect(0,0,inttof32(1)/64));
-	if(keysHeld() & KEY_L)tempState.position=addVect(tempState.position,vect(0,0,-inttof32(1)/64));
-	if(keysHeld() & KEY_UP)tempState.position=addVect(tempState.position,vect(0,inttof32(1)/64,0));
-	if(keysHeld() & KEY_DOWN)tempState.position=addVect(tempState.position,vect(0,-inttof32(1)/64,0));
-	if(keysHeld() & KEY_RIGHT)tempState.position=addVect(tempState.position,vect(inttof32(1)/64,0,0));
-	if(keysHeld() & KEY_LEFT)tempState.position=addVect(tempState.position,vect(-inttof32(1)/64,0,0));
-
 	//TEMP (updateCamera stuff)
-		menuCamera.viewPosition=menuCamera.position;
+	menuCamera.viewPosition=menuCamera.position;
 
-	// if(keysHeld() & KEY_A)lightAngle+=128;
-	// else if(keysHeld() & KEY_B)lightAngle-=128;
-		
-	if(keysHeld() & KEY_A)tempState.angle.x+=64;
-	if(keysHeld() & KEY_B)tempState.angle.x-=64;
-	if(keysHeld() & KEY_X)tempState.angle.y+=64;
-	if(keysHeld() & KEY_Y)tempState.angle.y-=64;
-	if(keysHeld() & KEY_START)tempState.angle.z+=64;
-	if(keysHeld() & KEY_SELECT)tempState.angle.z-=64;
 
-	// if(keysUp() & KEY_TOUCH)
-	// {
-	// 	if(tempbool)testTransition=startCameraTransition(&cameraStates[1],&cameraStates[0],64);
-	// 	else testTransition=startCameraTransition(&cameraStates[0],&cameraStates[1],64);
-
-	// 	tempbool^=1;
-	// }
 
 	if(!(keysHeld() & KEY_TOUCH)) updateSimpleGui(-1, -1);
 	else updateSimpleGui(currentTouch.px, currentTouch.py);
 
-	// applyCameraState(&menuCamera,&tempState);
+	/**
+	 * Moves camera
+	 */
 	updateCameraTransition(&menuCamera,&testTransition);
 
 	drawMenuScene();
 
-	switch(d3dScreen)
+	if(d3dScreen)
 	{
-		case true:
 			drawSimpleGui();
 			updateMenuScene();
-			break;
-		default:
-			if(logoAlpha)drawLogo();
-			break;
+
+
 	}
-	
+	else
+	{
+		//The credits and the options take over this screen while their page is
+		//up; the buttons, including Back, stay on the other one.
+		drawMenuCredits();
+		drawMenuOptions();
+
+		if(logoAlpha)
+		{
+			drawLogo();
+		}
+
+	}
+
+
 	glFlush(0);
 	swiWaitForVBlank();
 
@@ -192,6 +198,8 @@ void killMenu(void)
 
 void menuVBL(void)
 {
-
+	//The options page changes the brightness, and this is the one moment in the
+	//frame the register can be written without leaving a seam down the screen.
+	updatePendingBrightness();
 }
 

@@ -1,7 +1,21 @@
+/**
+ * @file cubes.c
+ * @brief Cube dispensers.
+ *
+ * Implements @ref cubes.h. A dispenser opens its hatch, spawns a rigid body
+ * through @ref createBox and holds a pointer to it; the cube itself is then
+ * entirely the ARM7's business.
+ *
+ * The back-pointer set in OBB_struct::spawner is what makes the chamber
+ * recoverable: when a cube is emancipated or dropped in sludge,
+ * @ref listenPI9 follows it here to @ref resetCubeDispenserCube and a fresh
+ * cube appears, instead of the puzzle becoming unsolvable.
+ */
+
 #include "game/game_main.h"
 
-cubeDispenser_struct cubeDispenser[NUMCUBEDISPENSERS];
-md2Model_struct storageCubeModel, companionCubeModel, cubeDispenserModel;
+static cubeDispenser_struct cubeDispenser[NUMCUBEDISPENSERS];
+static md2Model_struct storageCubeModel, companionCubeModel, cubeDispenserModel;
 
 void initCubes(void)
 {
@@ -11,7 +25,7 @@ void initCubes(void)
 		cubeDispenser[i].used=false;
 		cubeDispenser[i].id=i;
 	}
-	
+
 	loadMd2Model("models/cube.md2","storagecube.pcx",&storageCubeModel);generateModelDisplayLists(&storageCubeModel, false, 1);
 	loadMd2Model("models/cube.md2","companion.pcx",&companionCubeModel);generateModelDisplayLists(&companionCubeModel, false, 1);
 	loadMd2Model("models/cubedispenser.md2","cubedispenser.pcx",&cubeDispenserModel);generateModelDisplayLists(&cubeDispenserModel, false, 1);
@@ -27,16 +41,16 @@ void freeCubes(void)
 void initCubeDispenser(room_struct* r, cubeDispenser_struct* cd, vect3D pos, bool companion)
 {
 	if(!cd || !r)return;
-	
+
 	initModelInstance(&cd->modelInstance,&cubeDispenserModel);
 
 	cd->openingRectangle=NULL;
-	
+
 	{//for collisions
 		rectangle_struct rec;
 		rectangle_struct* recp;
 		rec.material=NULL;
-		
+
 		rec.position=addVect(pos,vect(-1,-8,1));rec.size=vect(2,0,-2);rec.normal=vect(0,-inttof32(1),0);recp=addRoomRectangle(r, rec, NULL, false);
 		if(recp)recp->hide=true;
 		cd->openingRectangle=recp;
@@ -48,16 +62,16 @@ void initCubeDispenser(room_struct* r, cubeDispenser_struct* cd, vect3D pos, boo
 		if(recp)recp->hide=true;
 		rec.position=addVect(pos,vect(1,0,-1));rec.size=vect(0,-8,2);rec.normal=vect(inttof32(1),0,0);recp=addRoomRectangle(r, rec, NULL, false);
 		if(recp)recp->hide=true;
-	}	
-	
+	}
+
 	pos=vect(pos.x+r->position.x, pos.y, pos.z+r->position.y);
 	cd->position=convertVect(pos);
-	
+
 	cd->companion=companion;
 	cd->currentCube=NULL;
-	
+
 	changeAnimation(&cd->modelInstance,0,false);
-	
+
 	cd->used=true;
 
 	cd->active=true;
@@ -83,7 +97,7 @@ cubeDispenser_struct* createCubeDispenser(room_struct* r, vect3D pos, bool compa
 void drawCubeDispenser(cubeDispenser_struct* cd)
 {
 	if(!cd)return;
-	
+
 	glPushMatrix();
 		u32 params=POLY_ALPHA(31)|POLY_CULL_NONE|POLY_ID(20+cd->id)|POLY_TOON_HIGHLIGHT|POLY_FOG;
 		setupObjectLighting(NULL, cd->position, &params);
@@ -112,7 +126,7 @@ void resetCubeDispenserCube(cubeDispenser_struct* cd)
 void updateCubeDispenser(cubeDispenser_struct* cd)
 {
 	if(!cd)return;
-	
+
 	if(cd->currentCube && !cd->currentCube->used)cd->currentCube=NULL;
 	if(cd->active && !cd->oldActive)
 	{
@@ -127,7 +141,7 @@ void updateCubeDispenser(cubeDispenser_struct* cd)
 		}
 		changeAnimation(&cd->modelInstance,1,true);
 	}
-	
+
 	updateAnimation(&cd->modelInstance);
 	cd->oldActive=cd->active;
 }

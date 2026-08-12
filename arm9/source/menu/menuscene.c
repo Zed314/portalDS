@@ -1,22 +1,64 @@
-#include "menu/menu_main.h"
-#include <dirent.h>
+/**
+ * @file menuscene.c
+ * @brief The animated background room and its terminal display.
+ *
+ * Implements @ref menuscene.h. The menu is set inside an actual 3D room drawn
+ * with the game's renderer, with cubes that spawn periodically, tumble and fade
+ * out.
+ *
+ * The terminal is the interesting part: @ref menuScreenText is a character grid
+ * rendered onto a screen in the scene, and @ref updateScreenList paints a
+ * scrollable list into it. So choosing a level means reading a monitor on the
+ * wall rather than a menu widget - the list scrolls when the cursor reaches the
+ * edge of the visible window, which is what screenList_struct::offset tracks.
+ */
 
-md2Model_struct GLaDOSmodel, domeModel, lairModel, cubeModel;
-modelInstance_struct GLaDOSmodelInstance;
+#include "menu/menu_main.h"
+
 
 camera_struct menuCamera;
-
-menuBox_struct menuBoxes[NUMMENUBOXES];
 char menuScreenText[MENUSCREENLINES][MENUSCREENCHARS];
 
-void initMenuBoxes(void)
-{
-	int i;
-	for(i=0;i<NUMMENUBOXES;i++)
-	{
-		menuBoxes[i].used=false;
-	}
-}
+
+static md2Model_struct GLaDOSmodel, domeModel, lairModel, cubeModel;
+static modelInstance_struct GLaDOSmodelInstance;
+static menuBox_struct menuBoxes[NUMMENUBOXES];
+
+/**
+ * Moves and rotates a 3D box.
+ * \param[inout] mb box to draw
+ */
+static void updateMenuBox(menuBox_struct* mb);
+/**
+ * Moves and rotates all 3D boxes.
+ */
+static void updateMenuBoxes(void);
+
+/**
+ * Creates a new box in the array menuBoxes,
+ * in the first unused location.
+ */
+static void createMenuBox(void);
+
+/**
+ * Initialises a box.
+ *
+ * \param[in] mb box to initialise
+ */
+static void initMenuBox(menuBox_struct* mb);
+
+/**
+ * Draws a background 3D box
+ * \param[in] mb box to draw
+ */
+static void drawMenuBox(const menuBox_struct* mb);
+/**
+ * Draws all background 3D boxes
+ */
+static void drawMenuBoxes(void);
+
+
+static void drawScreenText(void);
 
 void initMenuScene(void)
 {
@@ -28,6 +70,14 @@ void initMenuScene(void)
 	loadMd2Model("menu/lair_dome.md2","lairdome_256.pcx",&domeModel);
 	loadMd2Model("menu/lairv2.md2","gladoslair.pcx",&lairModel);
 	loadMd2Model("models/cube.md2","storagecube.pcx",&cubeModel);
+
+	//without display lists these render through the CPU immediate-mode path
+	//in renderModelFrameInterp - the lair alone is 713 triangles a frame.
+	//GLaDOS stays on that path deliberately: she is the one animated model
+	//here, and baking her 46 frames would cost hundreds of KB.
+	generateModelDisplayLists(&domeModel, false, 1);
+	generateModelDisplayLists(&lairModel, false, 1);
+	generateModelDisplayLists(&cubeModel, false, 1);
 
 	initModelInstance(&GLaDOSmodelInstance,&GLaDOSmodel);
 	changeAnimation(&GLaDOSmodelInstance,1,false);
@@ -41,10 +91,8 @@ void freeMenuScene(void)
 	freeMd2Model(&cubeModel);
 }
 
-vect3D boxOrigin={-9984,11392,-14016};
-vect3D boxDestination={-9984,-576,-14016};
 
-void updateMenuBox(menuBox_struct* mb)
+static void updateMenuBox(menuBox_struct* mb)
 {
 	if(!mb)return;
 
@@ -54,10 +102,14 @@ void updateMenuBox(menuBox_struct* mb)
 
 	mb->progress++;
 
-	if(mb->progress>MENUBOXSPEED)mb->used=false;
+	if(mb->progress>MENUBOXSPEED)
+	{
+		// if mb->progress >= MENUBOXSPEED, the box reached its destination
+		mb->used=false;
+	}
 }
 
-void updateMenuBoxes(void)
+static void updateMenuBoxes(void)
 {
 	int i;
 	for(i=0;i<NUMMENUBOXES;i++)
@@ -66,7 +118,7 @@ void updateMenuBoxes(void)
 	}
 }
 
-void initMenuBox(menuBox_struct* mb)
+static void initMenuBox(menuBox_struct* mb)
 {
 	if(!mb)return;
 
@@ -78,7 +130,7 @@ void initMenuBox(menuBox_struct* mb)
 	mb->used=true;
 }
 
-void createMenuBox(void)
+static void createMenuBox(void)
 {
 	int i;
 	for(i=0;i<NUMMENUBOXES;i++)
@@ -95,9 +147,12 @@ void updateMenuScene(void)
 	if(!(rand()%MENUBOXFREQUENCY))createMenuBox();
 }
 
-void drawMenuBox(menuBox_struct* mb)
+
+static void drawMenuBox(const menuBox_struct* mb)
 {
 	if(!mb)return;
+	vect3D boxOrigin={-9984,11392,-14016};
+	vect3D boxDestination={-9984,-576,-14016};
 
 	vect3D pos=vect(boxOrigin.x+((boxDestination.x-boxOrigin.x)*mb->progress)/MENUBOXSPEED,
 					boxOrigin.y+((boxDestination.y-boxOrigin.y)*mb->progress)/MENUBOXSPEED,
@@ -113,7 +168,7 @@ void drawMenuBox(menuBox_struct* mb)
 	glPopMatrix(1);
 }
 
-void drawMenuBoxes(void)
+static void drawMenuBoxes(void)
 {
 	int i;
 	for(i=0;i<NUMMENUBOXES;i++)
@@ -122,11 +177,11 @@ void drawMenuBoxes(void)
 	}
 }
 
-vect3D textPosition={-8256,6784,-14848};
-vect3D textAngle={0,-1664,0};
 
-void drawScreenText(void)
+static void drawScreenText(void)
 {
+	vect3D textPosition={-8256,6784,-14848};
+	vect3D textAngle={0,-1664,0};
 	glPushMatrix();
 		glTranslate3f32(textPosition.x,textPosition.y,textPosition.z);
 		glRotateXi(8192*2);
@@ -157,6 +212,7 @@ void resetSceneScreen(void)
 	int i; for(i=0;i<MENUSCREENLINES;i++)menuScreenText[i][0]='\0';
 }
 
+
 void initScreenList(screenList_struct* sl, char* title, char** list, int l)
 {
 	if(!sl || !title || !list)return;
@@ -186,7 +242,7 @@ void screenListMove(screenList_struct* sl, s8 move)
 
 void updateScreenList(screenList_struct* sl)
 {
-	if(!sl || !sl->title || !sl->list)return;
+	if(!sl || !sl->list)return;
 
 	resetSceneScreen();
 
@@ -212,53 +268,3 @@ void updateScreenList(screenList_struct* sl)
 	}
 }
 
-void freeFileList(char** list, int length)
-{
-	if(!list)return;
-
-	int i;
-	for(i=0;i<length;i++)
-	{
-		if(list[i]){free(list[i]);list[i]=NULL;}
-	}
-	free(list);
-}
-
-int listFiles(char* path, char** list)
-{
-	if(!path)return 0;
-
-	char currentPath[255];
-	getcwd(currentPath,255);
-
-	chdir(path);
-
-	struct dirent *ent;
-	struct stat st;
-	DIR* dir=opendir(".");
-
-	int cnt=0;
-	while((ent=readdir(dir)))
-	{
-		stat(ent->d_name,&st);
-		if(!S_ISDIR(st.st_mode) && strcmp(ent->d_name, ".") && strcmp(ent->d_name, ".."))
-		{
-			//dirty .map filter
-			int l=strlen(ent->d_name);
-			if(l>4 && ent->d_name[l-1]=='p' && ent->d_name[l-2]=='a' && ent->d_name[l-3]=='m' && ent->d_name[l-4]=='.')
-			{
-				if(list)
-				{
-					list[cnt]=malloc(strlen(ent->d_name)+1);
-					strcpy(list[cnt],ent->d_name);
-				}
-				cnt++;
-			}
-		}
-	}
-	closedir(dir);
-
-	chdir(currentPath);
-
-	return cnt;
-}

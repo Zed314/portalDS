@@ -1,14 +1,33 @@
+/**
+ * @file dual3D.c
+ * @brief Driving the single 3D engine so that both screens show 3D.
+ *
+ * Implements @ref dual3D.h. The DS has one 3D engine and it can only output to
+ * one screen, so this alternates: each frame renders for one screen, the
+ * display capture unit freezes the result into a VRAM bank, and that bank is
+ * shown as a bitmap background on the screen it belongs to while the engine
+ * moves on to the other one.
+ *
+ * The consequence to keep in mind when reading the game code is that each
+ * screen updates at 30Hz, and that @ref d3dScreen tells you which screen is
+ * being rendered *right now* - a lot of drawing code branches on it to decide
+ * what to submit.
+ *
+ * Sprites are used on top of the captured bitmap for the parts of the HUD that
+ * must stay sharp and update every frame regardless of the capture cycle.
+ */
+
 #include "common/general.h"
 
-SpriteEntry d3dSprites[128];
-bool d3dScreen;
+#define DUAL3D_N_SPRITES 128 /**< Size of the sprite pool used for HUD overlays. */
 
-pSpriteRotation d3dSpriteRotations = (pSpriteRotation)d3dSprites;
+static SpriteEntry d3dSprites[DUAL3D_N_SPRITES];
+bool d3dScreen;
 
 void initSprites(void)
 {
 	int i;
-	for(i = 0; i < 128; i++)
+	for(i = 0; i < DUAL3D_N_SPRITES; i++)
 	{
 	   d3dSprites[i].attribute[0] = ATTR0_DISABLED;
 	   d3dSprites[i].attribute[1] = 0;
@@ -18,40 +37,41 @@ void initSprites(void)
 
 void updateOAM(void)
 {
-	DC_FlushRange(d3dSprites, 128 * sizeof(SpriteEntry));
-	memcpy(OAM_SUB, d3dSprites, 128 * sizeof(SpriteEntry));
+	DC_FlushRange(d3dSprites, DUAL3D_N_SPRITES * sizeof(SpriteEntry));
+	memcpy(OAM_SUB, d3dSprites, DUAL3D_N_SPRITES * sizeof(SpriteEntry));
 }
 
 void initD3D()
 {
 	int x,y,i;
-	
+
 	videoSetMode(MODE_3_3D);
 	videoSetModeSub(MODE_5_2D | DISPLAY_BG2_ACTIVE | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_2D_BMP_256);
     vramSetPrimaryBanks(VRAM_A_TEXTURE,VRAM_B_TEXTURE,VRAM_C_SUB_BG,VRAM_D_SUB_SPRITE);
 	vramSetBankH(VRAM_H_LCD);
 	vramSetBankI(VRAM_I_LCD);
-	
+
 	REG_BG0CNT = BG_PRIORITY(1);
-	
+
 	REG_BG2CNT_SUB = BG_BMP16_256x256 | BG_BMP_BASE(0) | BG_PRIORITY(1);
         REG_BG2PA_SUB = 1 << 8;
         REG_BG2PB_SUB = 0;
         REG_BG2PC_SUB = 0;
         REG_BG2PD_SUB = 1 << 8;
-		
+
         REG_BG2X_SUB = 0;
         REG_BG2Y_SUB = 0;
-	
+
 	initSprites();
-	
+
+	pSpriteRotation d3dSpriteRotations = (pSpriteRotation)d3dSprites;
 	d3dSpriteRotations[0].hdx=256;
 	d3dSpriteRotations[0].hdy=0;
 	d3dSpriteRotations[0].vdx=0;
 	d3dSpriteRotations[0].vdy=256;
-	
+
 	i=0;
-	
+
 	for (y = 0; y < 3; y++)
 	{
 		for (x = 0; x < 4; x++) {
@@ -61,7 +81,7 @@ void initD3D()
 			i++;
 		}
 	}
-	
+
 	updateOAM();
 	d3dScreen=true;
 }

@@ -1,7 +1,12 @@
+/**
+ * @file particles.c
+ * @brief World-space particle effects. See @ref particles.h.
+ */
+
 #include "game/game_main.h"
 
-particle_struct particles[NUMPARTICLES];
-u16 particleCnt;
+static particle_struct particles[NUMPARTICLES];
+static u16 particleCnt;
 
 void initParticles(void)
 {
@@ -34,7 +39,7 @@ void createParticles(vect3D position, vect3D speed, u16 life, u16 color)
 	}
 }
 
-void drawParticle(particle_struct* p)
+static void drawParticle(particle_struct* p)
 {
 	if(!p)return;
 	glPushMatrix();
@@ -49,7 +54,7 @@ void drawParticle(particle_struct* p)
 			GFX_VERTEX10=NORMAL_PACK(size, size, 0);
 			GFX_VERTEX10=NORMAL_PACK(size, -size, 0);
 			GFX_VERTEX10=NORMAL_PACK(-size, -size, 0);
-			
+
 			GFX_VERTEX10=NORMAL_PACK(0, size, -size);
 			GFX_VERTEX10=NORMAL_PACK(0, size, size);
 			GFX_VERTEX10=NORMAL_PACK(0, -size, size);
@@ -67,7 +72,7 @@ void drawParticles(void)
 	}
 }
 
-void updateParticle(particle_struct* p)
+static void updateParticle(particle_struct* p)
 {
 	if(!p)return;
 	p->position.y-=GRAVITY/4;

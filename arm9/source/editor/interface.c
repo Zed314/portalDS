@@ -1,8 +1,21 @@
+/**
+ * @file interface.c
+ * @brief The editor toolbar and its pause menu.
+ *
+ * Implements @ref interface.h. The toolbar is a fixed row of PCX icons, each
+ * tagged with the tool it selects; unlike the context menus these keep their
+ * own pressed state, so the active tool stays visibly held down.
+ *
+ * @ref pauseEditorInterface is the save/load/test/quit menu, and is where the
+ * editor calls @ref writeMapEditor - the point at which blocks are converted to
+ * rectangles, the lightmaps packed and the lighting baked.
+ */
+
 #include "editor/editor_main.h"
 
 #define NUMINTERFACEBUTTONS (15)
 
-interfaceButton_struct interfaceButtons[]={ (interfaceButton_struct){37,38,"storagecube2_ui.pcx",NULL,6,false},
+static interfaceButton_struct interfaceButtons[]={ (interfaceButton_struct){37,38,"storagecube2_ui.pcx",NULL,6,false},
 											(interfaceButton_struct){72,38,"pressurebttn2_ui.pcx",NULL,3,false},
 											(interfaceButton_struct){107,38,"platform2_ui.pcx",NULL,9,false},
 											(interfaceButton_struct){142,38,"grid2_ui.pcx",NULL,8,false},
@@ -18,8 +31,8 @@ interfaceButton_struct interfaceButtons[]={ (interfaceButton_struct){37,38,"stor
 											(interfaceButton_struct){23,150,"save_button.pcx",NULL,100,false},
 											(interfaceButton_struct){178,150,"quit_button.pcx",NULL,101,false}};
 
-struct gl_texture_t *interfaceBackground;
-int bgSub;
+static struct gl_texture_t *interfaceBackground;
+static int bgSub;
 
 void initInterfaceButton(interfaceButton_struct* ib)
 {
@@ -43,7 +56,7 @@ void initInterface(void)
 	interfaceBackground=(struct gl_texture_t *)ReadPCXFile("interface.pcx","editor");
 	convertPCX16Bit(interfaceBackground);
 	bgSub=bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-	if(interfaceBackground->texels16)dmaCopy(interfaceBackground->texels16,bgGetGfxPtr(bgSub),256*192*2);
+	if(interfaceBackground && interfaceBackground->texels16)dmaCopy(interfaceBackground->texels16,bgGetGfxPtr(bgSub),256*192*2);
 
 	initInterfaceButtons();
 }
@@ -66,7 +79,7 @@ void eraseInterfaceButton(interfaceButton_struct* ib)
 	int j;
 	for(j=0;j<ib->imageData->height;j++)
 	{
-		dmaCopy(&interfaceBackground->texels16[ib->x+(ib->y+j)*256],&bgGetGfxPtr(bgSub)[ib->x+(ib->y+j)*256],ib->imageData->width*2);
+		if(interfaceBackground->texels16)dmaCopy(&interfaceBackground->texels16[ib->x+(ib->y+j)*256],&bgGetGfxPtr(bgSub)[ib->x+(ib->y+j)*256],ib->imageData->width*2);
 	}
 }
 

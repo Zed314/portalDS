@@ -1,3 +1,17 @@
+/**
+ * @file platform.c
+ * @brief Moving platforms: motion along a fixed run, and carrying whatever rides them.
+ *
+ * Implements @ref platform.h. A platform travels at a constant speed between
+ * its origin and destination; updatePlatform() detects arrival by testing the
+ * sign of the dot product between the remaining distance and the velocity,
+ * which works regardless of which way the run points.
+ *
+ * @ref collideOBBPlatforms is where the carrying happens: a body resting on a
+ * platform is displaced by the platform's own motion before its own physics
+ * runs, so it rides along instead of being left behind or shoved by an impulse.
+ */
+
 #include "stdafx.h"
 
 platform_struct platform[NUMPLATFORMS];
@@ -11,7 +25,7 @@ void initPlatforms(void)
 	}
 }
 
-void initPlatform(platform_struct* pf, vect3D orig, vect3D dest, bool BAF)
+ARM_CODE void initPlatform(platform_struct* pf, vect3D orig, vect3D dest, bool BAF)
 {
 	if(!pf)return;
 	
@@ -56,7 +70,7 @@ void togglePlatform(u8 id, bool active)
 	platform[id].active=active;
 }
 
-void updatePlatform(platform_struct* pf)
+ARM_CODE void updatePlatform(platform_struct* pf)
 {
 	if(!pf)return;
 	
@@ -90,7 +104,7 @@ void updatePlatform(platform_struct* pf)
 	pf->AAR.position=vect(pf->position.x-PLATFORMSIZE*4,pf->position.y,pf->position.z-PLATFORMSIZE*4);
 }
 
-void updatePlatforms(void)
+ARM_CODE void updatePlatforms(void)
 {
 	int i;
 	for(i=0;i<NUMPLATFORMS;i++)

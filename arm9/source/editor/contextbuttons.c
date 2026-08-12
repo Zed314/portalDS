@@ -1,3 +1,16 @@
+/**
+ * @file contextbuttons.c
+ * @brief The pop-up menus that follow the selection.
+ *
+ * Implements @ref contextbuttons.h. @ref setupContextButtons tears down
+ * whatever menu was showing and builds @ref simplegui.h buttons for the new
+ * one, laid out next to the current selection.
+ *
+ * @ref updateContextButtons reports whether the touch hit a menu entry, so the
+ * caller knows not to also treat it as an edit - without that, tapping a menu
+ * would simultaneously move the selection underneath it.
+ */
+
 #include "editor/editor_main.h"
 
 #define CONTEXTMARGINX (4)

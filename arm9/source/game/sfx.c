@@ -1,6 +1,16 @@
+/**
+ * @file sfx.c
+ * @brief Sound effect loading and playback.
+ *
+ * Implements @ref sfx.h. Samples are read whole into RAM at level load and
+ * fired with libnds' @c soundPlaySample. There is no mixing policy or channel
+ * management beyond what the hardware does - with a handful of effects and
+ * sixteen channels, there has never been a need.
+ */
+
 #include  "game/game_main.h"
 
-SFX_struct SFX[NUMSFX];
+static SFX_struct SFX[NUMSFX];
 
 void initSound()
 {
@@ -65,5 +75,9 @@ void playSFX(SFX_struct* s)
 {
 	if(!s || !s->used || !s->data)return;
 
-	soundPlaySample(s->data, s->format, s->size, 22050, 127, 64, false, 0);
+	//The setting is a percentage; the hardware takes 0-127.
+	const int volume=(settings.sfxVolume*SETTINGS_VOLUME_HARDWARE_MAX)/SETTINGS_VOLUME_MAX;
+	if(!volume)return;
+
+	soundPlaySample(s->data, s->format, s->size, 22050, volume, 64, false, 0);
 }

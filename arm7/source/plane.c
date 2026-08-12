@@ -1,6 +1,17 @@
+/**
+ * @file plane.c
+ * @brief Infinite plane primitives and box-versus-plane contacts.
+ *
+ * Implements @ref plane.h. Legacy code from before the world was made of
+ * axis aligned rectangles - nothing in the shipped game creates a plane any
+ * more, but @ref planeOBBContacts is the simplest example of how contact
+ * generation works and the @ref PLANECOLLISION path is still live in the
+ * impulse solver.
+ */
+
 #include "stdafx.h"
 
-void initPlane(plane_struct* pl, int32 A, int32 B, int32 C, int32 D)
+ARM_CODE void initPlane(plane_struct* pl, int32 A, int32 B, int32 C, int32 D)
 {
 	if(!pl)return;
 	pl->A=A;pl->B=B;pl->C=C;pl->D=D;
@@ -14,7 +25,7 @@ void initPlane(plane_struct* pl, int32 A, int32 B, int32 C, int32 D)
 	pl->point.z=-mulf32(pl->D,pl->C);
 }
 
-vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v, int32 d)
+ARM_CODE vect3D intersectSegmentPlane(plane_struct* pl, vect3D o, vect3D v)
 {
 	if(!pl)return o;
 	vect3D n=vect(pl->A,pl->B,pl->C);
@@ -39,13 +50,16 @@ void planeOBBContacts(plane_struct* p, OBB_struct* o)
 		int32 val1=evaluatePlanePoint(p,v[i]);
 		if(val1<=PENETRATIONTHRESHOLD)
 		{
-			o->contactPoints[o->numContactPoints].point=v[i];
-			o->contactPoints[o->numContactPoints].normal=vect(p->A,p->B,p->C);
-			o->contactPoints[o->numContactPoints].penetration=abs(val1);
-			o->contactPoints[o->numContactPoints].target=p;
-			o->contactPoints[o->numContactPoints].type=PLANECOLLISION;
-			o->maxPenetration=max(o->maxPenetration,-(min(val1,0)));
-			o->numContactPoints++;
+			contactPoint_struct* cp=nextContactPoint(o);
+			if(cp)
+			{
+				cp->point=v[i];
+				cp->normal=vect(p->A,p->B,p->C);
+				cp->penetration=abs(val1);
+				cp->target=p;
+				cp->type=PLANECOLLISION;
+				o->maxPenetration=max(o->maxPenetration,-(min(val1,0)));
+			}
 		}
 	}
 }

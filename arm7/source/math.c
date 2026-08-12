@@ -1,0 +1,179 @@
+/**
+ * @file math.c
+ * @brief Out-of-line fixed point maths for the ARM7.
+ *
+ * The small, hot helpers live inline in @ref math.h; this file holds the ones
+ * that are too big to inline or that need hand written assembly:
+ *
+ *  - @ref sqrtv, which calls the assembly integer root and adds a Newton
+ *    refinement step for inputs large enough that the fast path loses bits;
+ *  - the 3x3 matrix operations (@ref multMatrix33, @ref transposeMatrix33,
+ *    @ref evalVectMatrix33, @ref rotateMatrixAxis, @ref fixMatrix);
+ *  - @ref asm_crossf32, a cross product written directly in ARM assembly so
+ *    each component is accumulated at full 64 bit precision with @c smull /
+ *    @c smlal and shifted back down without an intermediate spill.
+ *
+ * @see normalize.c and isqrt32.c for the square root primitives this builds on.
+ */
+
+#include "stdafx.h"
+
+uint32_t isqrt_asm(uint32_t); /**< @brief Assembly integer square root; see isqrt32.c. */
+
+ARM_CODE __attribute__((noinline)) uint32_t sqrtv(uint32_t x)
+{
+    if (x<(1u<<20))
+    {
+        return isqrt_asm(x<<12);
+    } 
+    uint32_t r0=isqrt_asm(x)<<6;
+
+    uint32_t x0=((int64_t)r0*r0) >>12;
+    uint32_t epsilon=x-x0;
+    r0= r0+(epsilon<<11)/r0;
+
+    return r0;
+}
+
+void normalize_arm7(int32_t * a);
+
+ARM_CODE vect3D normalize(vect3D v)
+{
+    int32_t a[3]={v.x,v.y,v.z};
+    normalize_arm7(&a[0]);
+    v.x=a[0];
+    v.y=a[1];
+    v.z=a[2];
+    return v;
+}
+
+void transposeMatrix33(int32_t *restrict m1, int32_t *restrict m2) //3x3
+{
+    for(int i=0;i<3;i++)
+        for(int j=0;j<3;j++)
+            m2[j+i*3]=m1[i+j*3];
+    return;
+}
+
+ARM_CODE vect3D evalVectMatrix33(int32_t* m, vect3D v) //3x3
+{
+    return vect(((int64_t)v.x*m[0]+(int64_t)v.y*m[1]+(int64_t)v.z*m[2])>>12,
+                ((int64_t)v.x*m[3]+(int64_t)v.y*m[4]+(int64_t)v.z*m[5])>>12,
+                ((int64_t)v.x*m[6]+(int64_t)v.y*m[7]+(int64_t)v.z*m[8])>>12);
+}
+
+ARM_CODE void multMatrix33(int32* m1, int32* m2, int32 *restrict m) //3x3
+{
+    for(int i=0;i<3;i++)
+        for(int j=0;j<3;j++)
+            m[j+i*3]=((int64_t)m1[0+i*3]*m2[j+0*3]
+                     +(int64_t)m1[1+i*3]*m2[j+1*3]
+                     +(int64_t)m1[2+i*3]*m2[j+2*3])>>12;
+}
+
+ARM_CODE void multMatrix332(int32* m1, int32* m2, int32 *restrict m) //3x3
+{
+    for(int i=0;i<3;i++)
+        for(int j=0;j<3;j++)
+            m[i+j*3]=((int64_t)m1[i+0*3]*m2[0+j*3]
+                     +(int64_t)m1[i+2*3]*m2[2+j*3]
+                     +(int64_t)m1[i+2*3]*m2[2+j*3])>>12;
+}
+
+ARM_CODE void rotateMatrixAxis(int32* tm, int32 x, vect3D a, bool r)
+{
+    int32 rm[9], m[9];
+    int32 cosval=cosLerp(x);
+    int32 sinval=sinLerp(x);
+    int32 onemcosval=inttof32(1)-cosval;
+    rm[0]=cosval+mulf32(mulf32(a.x,a.x),onemcosval);
+    rm[1]=((int64_t)mulf32(a.x,a.y)*onemcosval+(int64_t)-a.z*sinval)>>12;
+    rm[2]=((int64_t)mulf32(a.x,a.z)*onemcosval+(int64_t)a.y*sinval)>>12;
+    rm[3]=((int64_t)mulf32(a.x,a.y)*onemcosval+(int64_t)a.z*sinval)>>12;
+    rm[4]=cosval+mulf32(mulf32(a.y,a.y),onemcosval);
+    rm[5]=((int64_t)mulf32(a.y,a.z)*onemcosval+(int64_t)-a.x*sinval)>>12;
+    rm[6]=((int64_t)mulf32(a.x,a.z)*onemcosval+(int64_t)-a.y*sinval)>>12;
+    rm[7]=((int64_t)mulf32(a.y,a.z)*onemcosval+(int64_t)a.x*sinval)>>12;
+    rm[8]=cosval+mulf32(mulf32(a.z,a.z),onemcosval);
+    if(r)
+        multMatrix33(rm,tm,m);
+    else
+        multMatrix33(tm,rm,m);
+    memcpy(tm,m,9*sizeof(int32));
+}
+
+#if defined(__arm__)
+
+ARM_CODE __attribute__((noinline)) void asm_crossf32(const int32_t *a,const int32_t * b,int32_t *result)
+{
+    register const int32_t *r0 asm("r0")=a;
+    asm (
+        ".syntax unified \n\t"
+        "ldm %[b], {r6,r12,lr} \n\t"
+        "ldm %[r0], {r3,r4,r5} \n\t"
+        //first component
+        "rsb r12,r12,#0 \n\t"
+        "smull %[r0],%[b], r4, lr \n\t"
+        "smlal %[r0],%[b], r12, r5 \n\t"
+        "lsr     %[r0], %[r0], #12 \n\t"
+        "orr    %[r0],%[r0], %[b], lsl #20 \n\t"
+        //second component
+        "rsb r3,r3,#0 \n\t"
+        "smull r5,%[b], r6, r5 \n\t"
+        "smlal r5,%[b], lr, r3 \n\t"
+        "lsr     r5, r5, #12 \n\t"
+        "orr    r5,r5, %[b], lsl #20 \n\t"
+        //third component
+        "rsb r6,r6, #0 \n\t"
+        "smull lr,%[b], r3, r12 \n\t"
+        "smlal lr,%[b], r4, r6 \n\t"
+        "lsr   lr, lr, #12 \n\t"
+        "orr    lr,lr, %[b], lsl #20 \n\t"
+        "stm    %[result], {%[r0],r5, lr}"
+/*outputs*/:"=m"(*(int32_t (*)[3]) result),[r0]"+r"(r0),[b]"+r"(b)
+/*inputs*/ :[result]"r"(result),"m"(*(int32_t (*)[3]) r0),  "m"(*(int32_t (*)[3]) b)
+/*clobber*/:"r3", "r4", "r5","r6", "r12", "lr"
+    );
+    return;
+}
+
+#else
+
+/**
+ * @brief Plain C cross product, used when this file is not built for ARM.
+ *
+ * The DS build always takes the assembly path above; this exists so the host
+ * unit tests (see tests/) can compile and link this translation unit. It is
+ * the same computation - each component accumulated in 64 bits and shifted
+ * back down by 12 - just written for a compiler that has no @c smlal.
+ */
+void asm_crossf32(const int32_t *a, const int32_t *b, int32_t *result)
+{
+    int32_t x = ((int64_t)a[1]*b[2] - (int64_t)a[2]*b[1])>>12;
+    int32_t y = ((int64_t)a[2]*b[0] - (int64_t)a[0]*b[2])>>12;
+    int32_t z = ((int64_t)a[0]*b[1] - (int64_t)a[1]*b[0])>>12;
+    result[0]=x;
+    result[1]=y;
+    result[2]=z;
+}
+
+#endif
+
+
+void fixMatrix(int32* m) //3x3
+{
+    if(!m)
+        return;
+    vect3D x=vect(m[0],m[3],m[6]);
+    vect3D y=vect(m[1],m[4],m[7]);
+    vect3D z=vect(m[2],m[5],m[8]);
+    projectVectorPlane(&x,y);
+    projectVectorPlane(&z,y);
+    projectVectorPlane(&z,x);
+    x=normalize(x);
+    y=normalize(y);
+    z=normalize(z);
+    m[0]=x.x;m[3]=x.y;m[6]=x.z;
+    m[1]=y.x;m[4]=y.y;m[7]=y.z;
+    m[2]=z.x;m[5]=z.y;m[8]=z.z;
+}
